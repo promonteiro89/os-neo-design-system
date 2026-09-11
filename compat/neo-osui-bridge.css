@@ -1,0 +1,245 @@
+/* ==========================================================================
+   Neo → OutSystems UI token bridge
+   --------------------------------------------------------------------------
+   Hand-authored — NOT generated. `tools/build.py` never touches this file.
+
+   Makes OutSystems UI widgets (.btn, .card, .table, .badge, .tag, .avatar,
+   inputs, alerts, tabs, accordion …) adopt the Neo design language — including
+   dark mode — WITHOUT editing OutSystems UI itself.
+
+   How it works: every colour, size and shadow in OutSystems UI is read through
+   a CSS variable. OutSystems UI 2.28.0 reads them as
+
+       var(--background-color-primary, var(--color-primary))
+        └─ per-channel override ──┘        └─ base value ──┘
+
+   so there are two override layers. This file writes to both:
+
+     • BASE layer  (--color-*, --shadow-*, --font-size-*, --header-size, …)
+       Works on every OutSystems UI version, including 2.16.0.
+     • SPLIT layer (--background-color-* / --text-color-* / --border-color-*)
+       Needs 2.28.0 or newer. Only there can a surface and the text on it come
+       from different Neo tokens — which Neo requires, because Neo's neutral-0
+       is the page background while its card surface is white.
+
+   Dark mode comes free: every value below is a Neo token, and Neo tokens flip
+   under [data-theme="dark"]. Both neutral scales run light→dark, and Neo's
+   dark theme inverts its own scale, so OutSystems UI inverts with it. The only
+   values that must NOT flip are called out individually at the bottom.
+
+   Load order:
+       OutSystems UI            (your base theme — loads itself)
+       dist/neo-tokens.css
+       compat/neo-o11-compat.css
+       compat/neo-osui-bridge.css   <- last
+   ========================================================================== */
+
+:root {
+  /* ---- Brand -------------------------------------------------------- */
+  --color-primary: var(--indigo-7);
+  --background-color-primary: var(--button-primary-background-default);
+  --text-color-primary: var(--link-text-default);
+  --border-color-primary: var(--border-selected-default);
+
+  --color-primary-hover: var(--button-primary-background-hover);
+  --background-color-primary-hover: var(--button-primary-background-hover);
+  --text-color-primary-hover: var(--link-text-hover);
+
+  --color-primary-selected: var(--surface-1-selected-default);
+  --color-secondary: var(--neutral-9);
+  --background-color-secondary: var(--neutral-9);
+  --text-color-secondary: var(--neutral-9);
+
+  /* ---- Neutral: base scale ------------------------------------------
+     Direction matches (0 = lightest, 10 = darkest) and Neo inverts its own
+     scale in dark mode, so this one line is what makes OutSystems UI go dark. */
+  --color-neutral-0: var(--neutral-0);
+  --color-neutral-1: var(--neutral-1);
+  --color-neutral-2: var(--neutral-2);
+  --color-neutral-3: var(--neutral-3);
+  --color-neutral-4: var(--neutral-4);
+  --color-neutral-5: var(--neutral-5);
+  --color-neutral-6: var(--neutral-6);
+  --color-neutral-7: var(--neutral-7);
+  --color-neutral-8: var(--neutral-8);
+  --color-neutral-9: var(--neutral-9);
+  --color-neutral-10: var(--neutral-10);
+
+  /* ---- Neutral: surfaces (2.28.0+) ----------------------------------
+     Neo separates "page" from "card". Without this split, cards would be the
+     same colour as the page and visually disappear. */
+  --background-color-neutral-0: var(--surface-1-default);
+  --background-color-neutral-1: var(--surface-2-default);
+  --background-color-neutral-2: var(--surface-1-hover);
+  --background-color-neutral-3: var(--surface-neutral-default);
+  --background-color-neutral-4: var(--surface-neutral-hover);
+
+  /* ---- Neutral: text (2.28.0+) -------------------------------------- */
+  --text-color-neutral-0: var(--button-primary-text-default);  /* on fills */
+  --text-color-neutral-5: var(--text-disabled);
+  --text-color-neutral-6: var(--text-disabled);
+  --text-color-neutral-7: var(--text-secondary);
+  --text-color-neutral-8: var(--icon-primary);
+  --text-color-neutral-9: var(--text-primary);
+  --text-color-neutral-10: var(--text-primary);
+
+  /* ---- Neutral: borders (2.28.0+) ----------------------------------- */
+  --border-color-neutral-3: var(--border-subtle);
+  --border-color-neutral-4: var(--border-default);
+  --border-color-neutral-5: var(--border-default);
+  --border-color-neutral-6: var(--border-hover);
+  --border-color-neutral-7: var(--border-hover);
+  --border-color-neutral-8: var(--border-hover);
+
+  /* ---- Semantic ----------------------------------------------------- */
+  --color-error: var(--text-error);
+  --background-color-error: var(--text-error);
+  --border-color-error: var(--border-error-default);
+  --text-color-error: var(--text-error);
+  --color-error-light: var(--surface-semantic-error);
+  --background-color-error-light: var(--surface-semantic-error);
+
+  --color-warning: var(--text-warning);
+  --background-color-warning: var(--text-warning);
+  --border-color-warning: var(--border-warning-default);
+  --text-color-warning: var(--text-warning);
+  --color-warning-light: var(--surface-semantic-warning);
+  --background-color-warning-light: var(--surface-semantic-warning);
+
+  --color-success: var(--text-success);
+  --background-color-success: var(--text-success);
+  --border-color-success: var(--border-success-default);
+  --text-color-success: var(--text-success);
+  --color-success-light: var(--surface-semantic-success);
+  --background-color-success-light: var(--surface-semantic-success);
+
+  --color-info: var(--text-info);
+  --background-color-info: var(--text-info);
+  --border-color-info: var(--border-info-default);
+  --text-color-info: var(--text-info);
+  --color-info-light: var(--surface-semantic-info);
+  --background-color-info-light: var(--surface-semantic-info);
+
+  /* ---- App shell ----------------------------------------------------
+     --header-size is already 56px in OutSystems UI, which is exactly the
+     portal's top bar. --side-menu-size is 300px; the portal rail is 256px. */
+  --color-background-body: var(--page-background);
+  --background-color-body: var(--page-background);
+  --header-color: var(--surface-1-default);
+  --background-color-header: var(--surface-1-default);
+  --color-background-login: var(--surface-1-default);
+  --header-size: 56px;
+  --side-menu-size: 256px;
+  --overlay-background: var(--popup-overlay);
+  --background-color-overlay: var(--popup-overlay);
+
+  /* ---- Type --------------------------------------------------------- */
+  --font-size-display: var(--font-size-8);   /* 40px */
+  --font-size-h1: var(--font-size-7);        /* 30px */
+  --font-size-h2: var(--font-size-6);        /* 24px */
+  --font-size-h3: var(--font-size-5);        /* 20px */
+  --font-size-h4: var(--font-size-4);        /* 18px */
+  --font-size-h5: var(--font-size-3);        /* 16px */
+  --font-size-h6: var(--font-size-2);        /* 14px */
+  --font-size-base: var(--font-size-3);      /* 16px */
+  --font-size-s: var(--font-size-2);         /* 14px */
+  --font-size-xs: var(--font-size-1);        /* 12px */
+  --font-size-label: var(--font-size-0);     /* 11px */
+  --font-semi-bold: var(--font-weight-2);    /* 600, same as OutSystems UI */
+
+  /* ---- Shape & elevation -------------------------------------------- */
+  --border-radius-soft: var(--border-radius-2);   /* 4px -> 8px, portal look */
+  --border-size-s: var(--size-1);                 /* 1px, unchanged */
+  --shadow-xs: var(--shadow-0);
+  --shadow-s: var(--shadow-1);
+  --shadow-m: var(--shadow-2);
+  --shadow-l: var(--shadow-3);
+  --shadow-xl: var(--shadow-4);
+
+  /* ---- Focus ring ---------------------------------------------------
+     OutSystems UI paints `0 0 0 3px var(--background-color-focus-outer)`;
+     Neo's ring is a translucent indigo of the same width, so matching the
+     colour is enough to match the look. */
+  --color-focus-outer: rgba(123, 126, 253, 0.6);
+  --background-color-focus-outer: rgba(123, 126, 253, 0.6);
+  --color-focus-inner: var(--border-focus);
+  --background-color-focus-inner: var(--border-focus);
+  --border-color-focus-inner: var(--border-focus);
+
+  /* ---- Selected-row veil -------------------------------------------
+     OutSystems UI paints selected list/table rows as
+     `background: <primary> <primary-lightest>` — a 90%-white gradient over
+     the brand colour. A white veil is wrong on a dark theme, so this is one
+     of the few values that has to be themed by hand (see the dark block). */
+  --osui-selected-veil: linear-gradient(rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.92));
+  --color-primary-lightest: var(--osui-selected-veil);
+  --background-color-primary-lightest: var(--osui-selected-veil);
+}
+
+/* OutSystems UI hardcodes the system font stack on `html` rather than reading a
+   variable, so this is a rule and not an override. */
+html {
+  font-family: "Noto Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+}
+
+/* --------------------------------------------------------------------------
+   Inputs get their own surface
+   --------------------------------------------------------------------------
+   OutSystems UI paints inputs, textareas and dropdown triggers with
+   neutral-0 — the same token as cards — so a variable alone cannot separate
+   them. Neo deliberately makes form controls darker than the surface they sit
+   on in dark mode (--input-background-default is neutral-0, the page colour).
+   Three declarations restore that.
+   -------------------------------------------------------------------------- */
+.form-control[data-input],
+.form-control[data-textarea],
+.dropdown-container > div.dropdown-display,
+.dropdown-container > select.dropdown-display {
+  background-color: var(--input-background-default);
+}
+
+/* --------------------------------------------------------------------------
+   Values that must NOT flip with the theme
+   --------------------------------------------------------------------------
+   OutSystems UI treats neutral-10 as "always the darkest colour" and uses it
+   for text on a yellow warning fill. Neo's neutral-10 flips to near-white in
+   dark mode, which would put white text on light yellow. Everywhere else
+   neutral-10 means "emphasised text" and SHOULD flip, so fix it at these two
+   call sites instead of un-flipping the token.
+   -------------------------------------------------------------------------- */
+[data-theme="dark"] .alert-warning,
+[data-theme="dark"] div.feedback-message-warning,
+[data-theme="dark"] .osui-notification {
+  color: var(--black);
+}
+
+[data-theme="dark"] {
+  /* Dark theme needs a dark veil over selected rows, not a white one. */
+  --osui-selected-veil: linear-gradient(rgba(24, 26, 31, 0.78), rgba(24, 26, 31, 0.78));
+}
+
+/* --------------------------------------------------------------------------
+   Class-name collisions — READ THIS
+   --------------------------------------------------------------------------
+   Neo's utility layer and OutSystems UI share 140 class names. 100 resolve to
+   identical values (all the margin/padding t-shirt scale) and are harmless.
+   30 differ. Two of them invert meaning and will change existing screens:
+
+     .text-primary    Neo = body text (#181a1f)   OutSystems UI = brand (#1068eb)
+     .text-secondary  Neo = muted text (#686f7d)  OutSystems UI = navy (#303d60)
+
+   Whichever stylesheet loads LAST wins. If you have existing O11 screens using
+   `.text-primary` to mean "brand blue", loading Neo's utilities after
+   OutSystems UI turns that text near-black.
+
+   Also differing: .font-bold (600 vs 700), .font-semi-bold (500 vs 600),
+   .text-neutral-0…10 and .background-neutral-0…10 (different hexes),
+   .text-error/-warning/-success/-info (Neo's are darker), .heading1…6
+   (Neo sets the whole `font` shorthand, OutSystems UI only `font-size`).
+
+   Full list: reference/osui-collisions.md
+   Safest fix: do not paste src/03-utilities/colors.css and typography.css into
+   an app that already uses those OutSystems UI classes. The bridge above
+   already gives you the Neo look on OutSystems UI widgets without them.
+   -------------------------------------------------------------------------- */

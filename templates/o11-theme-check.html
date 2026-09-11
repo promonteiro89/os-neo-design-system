@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>O11 theme bundle — single-file check</title>
+
+<!-- Stands in for OutSystems UI, which O11 loads from the base theme. -->
+<link rel="stylesheet" href="../reference/raw/osui-2.28-excerpt.css">
+
+<!-- The ONE file you paste into the Theme's stylesheet. Nothing else. -->
+<link rel="stylesheet" href="../dist/o11-theme.css">
+</head>
+<body class="desktop">
+  <div style="max-width:760px;margin:0 auto;padding:32px">
+    <h1 class="heading1">O11 theme bundle</h1>
+    <p>Only <code>reference/raw/osui-2.28-excerpt.css</code> (standing in for the base
+       theme) and <code>dist/o11-theme.css</code> are loaded. If the values below match
+       the bridge's table, the single paste-ready file is self-sufficient.</p>
+
+    <div class="card" style="margin:24px 0">
+      <div class="card-detail-title">Card</div>
+      <div class="card-detail-text">Surface, border and radius from Neo tokens.</div>
+    </div>
+
+    <div style="display:flex;gap:16px;align-items:center;margin-bottom:24px">
+      <button class="btn btn-primary">Primary</button>
+      <button class="btn">Default</button>
+      <input class="form-control" data-input value="Input">
+      <span class="badge badge-small background-success">Online</span>
+    </div>
+
+    <div class="alert alert-warning"><span class="alert-icon">!</span>
+      <span class="alert-message">Warning keeps dark text in both themes.</span></div>
+
+    <p style="margin-top:24px">
+      <button class="btn btn-small" onclick="document.documentElement.dataset.theme =
+        document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'">Toggle theme</button>
+    </p>
+  </div>
+</body>
+</html>

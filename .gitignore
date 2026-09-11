@@ -1,0 +1,6 @@
+# The real tenant host is configuration, not source — see odc-tenant.example.
+odc-tenant
+
+.DS_Store
+.claude/settings.local.json
+reference/raw/*.prev

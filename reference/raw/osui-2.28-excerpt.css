@@ -1,0 +1,263 @@
+/* ==========================================================================
+   OutSystems UI 2.28.0 (O11) — VERBATIM EXCERPT, not the full stylesheet
+   --------------------------------------------------------------------------
+   Only the rules needed to verify compat/neo-osui-bridge.css are reproduced
+   here, copied unchanged from the 2.28.0 build. They are included because this
+   repo has the 2.16.0 build (bundled by the ODC portal), which predates the
+   per-channel `var(--background-color-x, var(--color-x))` override layer this
+   excerpt demonstrates.
+
+   Purpose: templates/osui-neo-skin.html loads this to prove the SPLIT override
+   layer resolves. The BASE layer is verified against the real, complete
+   2.16.0 file in the same page.
+
+   Do not treat this as a source of truth for OutSystems UI. It is a test
+   fixture. Nothing generates or updates it.
+   ========================================================================== */
+
+/* ---- Elements ---------------------------------------------------------- */
+html {
+  color: var(--text-color-neutral-9, var(--color-neutral-9));
+}
+body {
+  background-color: var(--background-color-body, var(--color-background-body));
+  font-size: var(--font-size-s);
+  line-height: 1.5;
+  margin: 0;
+}
+h1, .heading1, h2, .heading2, h3, .heading3, h4, .heading4 {
+  font-weight: var(--font-semi-bold);
+  line-height: 1.25;
+  margin: 0;
+}
+h1, .heading1 { font-size: var(--font-size-h1); }
+h2, .heading2 { font-size: var(--font-size-h2); }
+h3, .heading3 { font-size: var(--font-size-h3); }
+h4, .heading4 { font-size: var(--font-size-h4); }
+a, a:visited { color: var(--text-color-primary, var(--color-primary)); }
+label { color: var(--text-color-neutral-8, var(--color-neutral-8)); }
+
+/* ---- 4.1 Inputs -------------------------------------------------------- */
+.form-control[data-input], .form-control[data-textarea] {
+  background-color: var(--background-color-neutral-0, var(--color-neutral-0));
+  border: var(--border-size-s) solid var(--border-color-neutral-5, var(--color-neutral-5));
+  border-radius: var(--border-radius-soft);
+  color: var(--text-color-neutral-9, var(--color-neutral-9));
+  font-size: var(--font-size-s);
+  transition: all 180ms linear;
+}
+.form-control[data-input]:hover { border: var(--border-size-s) solid var(--border-color-neutral-6, var(--color-neutral-6)); }
+.form-control[data-input]:focus { border: var(--border-size-s) solid var(--border-color-primary, var(--color-primary)); }
+.form-control[data-input][disabled] {
+  background-color: var(--background-color-neutral-2, var(--color-neutral-2));
+  border: var(--border-size-s) solid var(--border-color-neutral-4, var(--color-neutral-4));
+  color: var(--text-color-neutral-6, var(--color-neutral-6));
+}
+.form-control[data-input] { height: 40px; padding: var(--space-none) var(--space-base); }
+.form-control.not-valid[data-input] { border: var(--border-size-s) solid var(--border-color-error, var(--color-error)); }
+span.validation-message {
+  color: var(--text-color-error, var(--color-error));
+  font-size: var(--font-size-xs);
+  margin-left: var(--space-none);
+}
+
+/* ---- 4.5 Button -------------------------------------------------------- */
+.btn {
+  align-items: center;
+  background-color: var(--background-color-neutral-0, var(--color-neutral-0));
+  border: var(--border-size-s) solid currentColor;
+  border-radius: var(--border-radius-soft);
+  color: var(--text-color-primary, var(--color-primary));
+  cursor: pointer;
+  display: inline-flex;
+  filter: brightness(1);
+  font-weight: var(--font-semi-bold);
+  height: 40px;
+  justify-content: center;
+  line-height: 1;
+  margin: 0;
+  padding: var(--space-none) var(--space-base);
+  transition: all 100ms linear;
+}
+.btn + .btn { margin-left: var(--space-m); }
+.btn-primary {
+  background-color: var(--background-color-primary, var(--color-primary));
+  border: var(--border-size-s) solid var(--border-color-primary, var(--color-primary));
+  color: var(--text-color-neutral-0, var(--color-neutral-0));
+}
+.btn-small { font-size: var(--font-size-xs); height: 32px; padding: var(--space-none) var(--space-s); }
+.btn-cancel {
+  background-color: var(--background-color-neutral-0, var(--color-neutral-0));
+  border: var(--border-size-s) solid var(--border-color-neutral-8, var(--color-neutral-8));
+  color: var(--text-color-neutral-7, var(--color-neutral-7));
+}
+.btn-success {
+  background-color: var(--background-color-success, var(--color-success));
+  border: var(--border-size-s) solid var(--border-color-success, var(--color-success));
+  color: var(--text-color-neutral-0, var(--color-neutral-0));
+}
+.btn-error {
+  background-color: var(--background-color-error, var(--color-error));
+  border: var(--border-size-s) solid var(--border-color-error, var(--color-error));
+  color: var(--text-color-neutral-0, var(--color-neutral-0));
+}
+.btn[disabled] {
+  background-color: var(--background-color-neutral-2, var(--color-neutral-2));
+  border: var(--border-size-s) solid var(--border-color-neutral-4, var(--color-neutral-4));
+  color: var(--text-color-neutral-6, var(--color-neutral-6));
+  pointer-events: none;
+}
+.desktop .btn:hover { filter: brightness(0.9); }
+
+/* ---- 4.7 List Item ----------------------------------------------------- */
+.list-item {
+  border-bottom: var(--border-size-s) solid var(--border-color-neutral-4, var(--color-neutral-4));
+  overflow: hidden;
+  padding: var(--space-m);
+  position: relative;
+}
+.list-item:last-of-type { border-bottom: none; }
+.list .list-item { background-color: var(--background-color-neutral-0, var(--color-neutral-0)); }
+.desktop .list .list-item-selected {
+  background: var(--background-color-primary, var(--color-primary)) var(--background-color-primary-lightest, var(--color-primary-lightest));
+}
+.desktop .list .list-item-selected .list-item-content-title {
+  color: var(--text-color-neutral-10, var(--color-neutral-10));
+}
+
+/* ---- 4.8 Table --------------------------------------------------------- */
+.table {
+  border: var(--border-size-s) solid var(--border-color-neutral-4, var(--color-neutral-4));
+  border-radius: var(--border-radius-soft);
+  border-spacing: 0;
+  empty-cells: show;
+  white-space: nowrap;
+  width: 100%;
+  word-break: keep-all;
+}
+.table-header th {
+  background-color: var(--background-color-neutral-0, var(--color-neutral-0));
+  border-bottom: var(--border-size-s) solid var(--border-color-neutral-4, var(--color-neutral-4));
+  color: var(--text-color-neutral-8, var(--color-neutral-8));
+  font-weight: var(--font-semi-bold);
+  height: 48px;
+  padding: var(--space-none) var(--space-m);
+  text-align: left;
+}
+.table-row td {
+  background: var(--background-color-neutral-0, var(--color-neutral-0));
+  border-bottom: var(--border-size-s) solid var(--border-color-neutral-4, var(--color-neutral-4));
+  height: 56px;
+  padding: var(--space-s) var(--space-m);
+  vertical-align: inherit;
+}
+.table-row:hover td { background: var(--background-color-neutral-2, var(--color-neutral-2)); }
+.table-row.table-row-selected td {
+  background: var(--background-color-primary, var(--color-primary)) var(--background-color-primary-lightest, var(--color-primary-lightest));
+}
+.table .table-row:last-child td { border-bottom: none; }
+
+/* ---- 6.2.3 Alert ------------------------------------------------------- */
+.alert {
+  align-items: center;
+  border-radius: var(--border-radius-soft);
+  color: var(--text-color-neutral-0, var(--color-neutral-0));
+  display: flex;
+  padding: var(--space-base);
+}
+.alert .alert-icon { align-self: flex-start; display: inline-flex; font-size: 24px; margin-right: var(--space-base); }
+.alert .alert-message { flex: 1; }
+.alert-info { background-color: var(--background-color-info, var(--color-info)); }
+.alert-success { background-color: var(--background-color-success, var(--color-success)); }
+.alert-error { background-color: var(--background-color-error, var(--color-error)); }
+.alert-warning {
+  background-color: var(--background-color-warning, var(--color-warning));
+  color: var(--text-color-neutral-10, var(--color-neutral-10));
+}
+
+/* ---- 6.2.5 Card -------------------------------------------------------- */
+.card {
+  background-color: var(--background-color-neutral-0, var(--color-neutral-0));
+  border: var(--border-size-s) solid var(--border-color-neutral-4, var(--color-neutral-4));
+  border-radius: var(--border-radius-soft);
+  padding: var(--space-m);
+}
+
+/* ---- 6.2.7 Card Item --------------------------------------------------- */
+.card-detail-title {
+  color: var(--text-color-neutral-10, var(--color-neutral-10));
+  font-size: var(--font-size-h5);
+  font-weight: var(--font-semi-bold);
+}
+.card-detail-text { color: var(--text-color-neutral-7, var(--color-neutral-7)); }
+
+/* ---- 6.2.13 Section ---------------------------------------------------- */
+.section-title {
+  background-color: transparent;
+  border-bottom: var(--border-size-s) solid var(--border-color-neutral-4, var(--color-neutral-4));
+  color: var(--text-color-neutral-9, var(--color-neutral-9));
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-semi-bold);
+  padding: var(--space-none) var(--space-none) var(--space-s) var(--space-none);
+  position: relative;
+  text-transform: none;
+  width: 100%;
+}
+.section-content { padding: var(--space-s) var(--space-none) var(--space-none); }
+
+/* ---- 6.2.14 Tag -------------------------------------------------------- */
+.tag {
+  align-items: center;
+  color: var(--text-color-neutral-0, var(--color-neutral-0));
+  display: inline-flex;
+  font-weight: var(--font-semi-bold);
+  height: 32px;
+  justify-content: center;
+  line-height: 1;
+  min-width: 32px;
+  padding: var(--space-none) var(--space-base);
+  word-break: normal;
+}
+.tag.tag-small { font-size: var(--font-size-xs); height: 24px; padding: var(--space-none) var(--space-s); }
+.tag.background-neutral-1, .tag.background-neutral-2, .tag.background-neutral-3, .tag.background-neutral-4 {
+  color: var(--text-color-neutral-9, var(--color-neutral-9));
+}
+
+/* ---- 6.2.16 User Avatar ------------------------------------------------ */
+.avatar {
+  align-items: center;
+  color: var(--text-color-neutral-0, var(--color-neutral-0));
+  display: inline-flex;
+  font-weight: var(--font-semi-bold);
+  height: 32px;
+  justify-content: center;
+  line-height: 1;
+  text-transform: uppercase;
+  width: 32px;
+}
+.avatar-medium { font-size: var(--font-size-base); height: 40px; width: 40px; }
+
+/* ---- 6.5.1 Badge ------------------------------------------------------- */
+.badge {
+  align-items: center;
+  color: var(--text-color-neutral-0, var(--color-neutral-0));
+  display: inline-flex;
+  font-weight: var(--font-semi-bold);
+  height: 32px;
+  justify-content: center;
+  line-height: 1;
+  min-width: 32px;
+}
+.badge-small { font-size: var(--font-size-xs); height: 24px; min-width: 24px; padding: var(--space-none) var(--space-xs); }
+
+/* ---- 6.6.5 Separator --------------------------------------------------- */
+.separator { background-color: var(--background-color-primary, var(--color-primary)); }
+.separator-horizontal { height: 1px; width: 100%; }
+
+/* ---- 7.x Utility classes used by the demo ------------------------------ */
+.background-neutral-2 { background-color: var(--background-color-neutral-2, var(--color-neutral-2)); }
+.background-success { background-color: var(--background-color-success, var(--color-success)); }
+.background-error { background-color: var(--background-color-error, var(--color-error)); }
+.background-info { background-color: var(--background-color-info, var(--color-info)); }
+.border-radius-rounded { border-radius: var(--border-radius-rounded); }
+.border-radius-circle { border-radius: var(--border-radius-circle); }

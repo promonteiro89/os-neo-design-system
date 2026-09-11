@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neo Design System — extracted reference</title>
+
+<!-- The shipped bundle, exactly as it would be pasted into an app theme.
+     One file: dist/neo.css was retired when everything was folded into
+     neobase.css, which now also carries the four properties the upstream
+     bundle references but never defines. Do not add neo-compat.css after it. -->
+<link rel="stylesheet" href="../dist/neobase.css">
+
+<style>
+  /* Demo page chrome only — not part of the design system. */
+  .demo-page   { max-width: 1100px; margin: 0 auto; padding: var(--space-7); }
+  .demo-sect   { margin-bottom: var(--space-9); }
+  .demo-sect > h2 { margin: 0 0 var(--space-5); }
+  .demo-row    { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; }
+  .demo-grid   { display: grid; gap: var(--space-2);
+                 grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); }
+  .demo-card   { background: var(--surface-1-default); border: 1px solid var(--border-subtle);
+                 border-radius: var(--border-radius-2); padding: var(--space-5); }
+  .demo-swatch { border-radius: var(--border-radius-1); height: var(--size-11);
+                 border: 1px solid var(--avatar-image-border); }
+  .demo-label  { color: var(--text-secondary); font: var(--body-regular-xs); margin-top: var(--space-1); }
+  .demo-bar    { background: var(--surface-neutral-default); border-radius: var(--border-radius-1);
+                 height: var(--size-6); }
+  .demo-top    { display: flex; align-items: center; justify-content: space-between;
+                 gap: var(--space-4); margin-bottom: var(--space-7); }
+</style>
+</head>
+<body>
+<div class="demo-page">
+
+  <header class="demo-top">
+    <div>
+      <h1 class="heading-1">Neo Design System</h1>
+      <p class="body-regular-l text-secondary">
+        Extracted from the ODC portal — rendered here with hand-written markup and no JavaScript
+        framework, to prove the CSS is reusable on its own.
+      </p>
+    </div>
+    <button id="theme" class="fusion-tag fusion-tag--choice" style="cursor:pointer">
+      <span class="fusion-tag__content"><span class="fusion-tag__label">Toggle theme</span></span>
+    </button>
+  </header>
+
+  <!-- ================================================================ -->
+  <section class="demo-sect">
+    <h2 class="heading-2">Color ramps</h2>
+    <div id="ramps"></div>
+  </section>
+
+  <section class="demo-sect">
+    <h2 class="heading-2">Semantic surfaces &amp; text</h2>
+    <div class="demo-row">
+      <div class="demo-card" style="background:var(--surface-1-default)">surface-1</div>
+      <div class="demo-card" style="background:var(--surface-2-default)">surface-2</div>
+      <div class="demo-card" style="background:var(--surface-semantic-error)">
+        <span class="text-error">error</span></div>
+      <div class="demo-card" style="background:var(--surface-semantic-warning)">
+        <span class="text-warning">warning</span></div>
+      <div class="demo-card" style="background:var(--surface-semantic-success)">
+        <span class="text-success">success</span></div>
+      <div class="demo-card" style="background:var(--surface-semantic-info)">
+        <span class="text-info">info</span></div>
+    </div>
+  </section>
+
+  <section class="demo-sect">
+    <h2 class="heading-2">Type scale <span class="body-regular-s text-secondary">— utility classes</span></h2>
+    <div class="demo-card">
+      <div class="display-l">display-l</div>
+      <div class="display">display</div>
+      <div class="heading-1">heading-1</div>
+      <div class="heading-2">heading-2</div>
+      <div class="heading-3">heading-3</div>
+      <div class="heading-4">heading-4</div>
+      <div class="body-semi-bold-l">body-semi-bold-l</div>
+      <div class="body-regular-base">body-regular-base</div>
+      <div class="body-regular-s">body-regular-s</div>
+      <div class="body-regular-xs">body-regular-xs</div>
+      <div class="actions-base">actions-base</div>
+    </div>
+  </section>
+
+  <section class="demo-sect">
+    <h2 class="heading-2">Spacing scale</h2>
+    <div class="demo-card" id="spacing"></div>
+  </section>
+
+  <section class="demo-sect">
+    <h2 class="heading-2">Elevation</h2>
+    <div class="demo-row">
+      <div class="demo-card shadow-0">shadow-0</div>
+      <div class="demo-card shadow-1">shadow-1</div>
+      <div class="demo-card shadow-2">shadow-2</div>
+      <div class="demo-card shadow-3">shadow-3</div>
+      <div class="demo-card shadow-4">shadow-4</div>
+    </div>
+  </section>
+
+  <!-- ================================================================ -->
+  <section class="demo-sect">
+    <h2 class="heading-2">Tag</h2>
+    <div class="demo-row">
+      <fusion-tag><span class="fusion-tag fusion-tag--label"><span class="fusion-tag__content">
+        <span class="fusion-tag__label">Label</span></span></span></fusion-tag>
+
+      <fusion-tag><span class="fusion-tag fusion-tag--choice"><span class="fusion-tag__content">
+        <span class="fusion-tag__label">Choice</span></span></span></fusion-tag>
+
+      <fusion-tag><span class="fusion-tag fusion-tag--choice fusion-tag--selected">
+        <span class="fusion-tag__content">
+        <span class="fusion-tag__label">Selected</span></span></span></fusion-tag>
+
+      <fusion-tag><span class="fusion-tag fusion-tag--ghost"><span class="fusion-tag__content">
+        <span class="fusion-tag__label">Ghost</span></span></span></fusion-tag>
+
+      <fusion-tag><span class="fusion-tag fusion-tag--disabled"><span class="fusion-tag__content">
+        <span class="fusion-tag__label">Disabled</span></span></span></fusion-tag>
+
+      <fusion-tag><span class="fusion-tag fusion-tag--removable"><span class="fusion-tag__content">
+        <span class="fusion-tag__label">Removable</span></span>
+        <button class="fusion-tag__remove-btn" aria-label="Remove">
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5"
+                  fill="none" stroke-linecap="round"/>
+          </svg>
+        </button></span></fusion-tag>
+    </div>
+  </section>
+
+  <section class="demo-sect">
+    <h2 class="heading-2">Avatar</h2>
+    <div class="demo-row">
+      <span class="fusion-avatar fusion-avatar--size-xs fusion-avatar--format-circle fusion-avatar--color-indigo">
+        <span class="fusion-avatar__initials">rm</span></span>
+      <span class="fusion-avatar fusion-avatar--size-s fusion-avatar--format-circle fusion-avatar--color-blue">
+        <span class="fusion-avatar__initials">ab</span></span>
+      <span class="fusion-avatar fusion-avatar--size-m fusion-avatar--format-rounded fusion-avatar--color-green">
+        <span class="fusion-avatar__initials">cd</span></span>
+      <span class="fusion-avatar fusion-avatar--size-l fusion-avatar--format-rounded fusion-avatar--color-orange">
+        <span class="fusion-avatar__initials">ef</span></span>
+      <span class="fusion-avatar fusion-avatar--size-xl fusion-avatar--format-circle fusion-avatar--color-red">
+        <span class="fusion-avatar__initials">gh</span></span>
+    </div>
+  </section>
+
+  <section class="demo-sect">
+    <h2 class="heading-2">Score &amp; counter</h2>
+    <div class="demo-row">
+      <span class="fusion-score fusion-score--success">98</span>
+      <span class="fusion-score fusion-score--info">76</span>
+      <span class="fusion-score fusion-score--warning">54</span>
+      <span class="fusion-score fusion-score--warning-high">32</span>
+      <span class="fusion-score fusion-score--error">12</span>
+      <span class="fusion-score fusion-score--neutral">n/a</span>
+      <span class="fusion-score fusion-score--accent">new</span>
+      <span class="fusion-counter">24</span>
+      <span class="fusion-counter fusion-counter--disabled">0</span>
+    </div>
+  </section>
+
+  <section class="demo-sect">
+    <h2 class="heading-2">Progress bar</h2>
+    <div class="demo-card" style="display:grid;gap:var(--space-6)">
+      <div class="fusion-progress-bar">
+        <span class="fusion-progress-bar__text-left">Deployment</span>
+        <span class="fusion-progress-bar__text-right">72%</span>
+        <span class="fusion-progress-bar__bar">
+          <span class="fusion-progress-bar__fill fusion-progress-bar__fill--color-indigo"
+                style="width:72%"></span></span>
+        <span class="fusion-progress-bar__helper-left">3 of 4 stages</span>
+        <span class="fusion-progress-bar__helper-right">~2 min left</span>
+      </div>
+      <div class="fusion-progress-bar fusion-progress-bar--inline">
+        <span class="fusion-progress-bar__text-left">Storage</span>
+        <span class="fusion-progress-bar__bar">
+          <span class="fusion-progress-bar__fill fusion-progress-bar__fill--color-red"
+                style="width:91%"></span></span>
+        <span class="fusion-progress-bar__text-right">91%</span>
+      </div>
+      <div class="fusion-progress-bar fusion-progress-bar--inline">
+        <span class="fusion-progress-bar__text-left">Tests</span>
+        <span class="fusion-progress-bar__bar">
+          <span class="fusion-progress-bar__fill fusion-progress-bar__fill--color-green"
+                style="width:100%"></span></span>
+        <span class="fusion-progress-bar__text-right">100%</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="demo-sect">
+    <h2 class="heading-2">Loading spinner</h2>
+    <div class="demo-row" id="spinners"></div>
+  </section>
+
+  <section class="demo-sect">
+    <h2 class="heading-2">Accordion <span class="body-regular-s text-secondary">— state classes toggled by 6 lines of JS</span></h2>
+    <div class="fusion-accordion">
+      <fusion-accordion-item>
+        <div class="fusion-accordion-item">
+          <div class="fusion-accordion-item__header" role="button" tabindex="0">
+            <div class="fusion-accordion-item__header-content">
+              <div class="fusion-accordion-item__title">Tokens</div>
+              <div class="fusion-accordion-item__description">612 light, 295 dark overrides</div>
+            </div>
+            <div class="fusion-accordion-item__chevron">
+              <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none"
+                      stroke-linecap="round"/></svg>
+            </div>
+          </div>
+          <div class="fusion-accordion-item__content" hidden>
+            Every custom property from the source <code>:root</code> block, grouped into
+            primitives, semantic aliases and per-component tokens.
+          </div>
+        </div>
+      </fusion-accordion-item>
+      <fusion-accordion-item>
+        <div class="fusion-accordion-item">
+          <div class="fusion-accordion-item__header" role="button" tabindex="0">
+            <div class="fusion-accordion-item__header-content">
+              <div class="fusion-accordion-item__title">Components</div>
+              <div class="fusion-accordion-item__description">25 files, light DOM only</div>
+            </div>
+            <div class="fusion-accordion-item__chevron">
+              <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none"
+                      stroke-linecap="round"/></svg>
+            </div>
+          </div>
+          <div class="fusion-accordion-item__content" hidden>
+            No shadow DOM and no <code>::part</code>, so the class names are the whole API.
+          </div>
+        </div>
+      </fusion-accordion-item>
+      <fusion-accordion-item>
+        <div class="fusion-accordion-item fusion-accordion-item--disabled">
+          <div class="fusion-accordion-item__header fusion-accordion-item__header--disabled">
+            <div class="fusion-accordion-item__header-content">
+              <div class="fusion-accordion-item__title">Disabled item</div>
+            </div>
+            <div class="fusion-accordion-item__chevron fusion-accordion-item__chevron--disabled">
+              <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none"
+                      stroke-linecap="round"/></svg>
+            </div>
+          </div>
+        </div>
+      </fusion-accordion-item>
+    </div>
+  </section>
+
+  <section class="demo-sect">
+    <h2 class="heading-2">Wizard</h2>
+    <div class="demo-card" style="max-width:320px">
+      <div class="fusion-wizard">
+        <fusion-wizard-step>
+          <div class="fusion-wizard-step">
+            <div class="fusion-wizard-step__indicator">
+              <div class="fusion-wizard-step__bar fusion-wizard-step__bar--top fusion-wizard-step__bar--complete"></div>
+              <div class="fusion-wizard-step__icon fusion-wizard-step__icon--complete">
+                <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="M3.5 8.5l3 3 6-6" stroke="currentColor" stroke-width="2" fill="none"
+                        stroke-linecap="round"/></svg>
+              </div>
+              <div class="fusion-wizard-step__bar fusion-wizard-step__bar--bottom fusion-wizard-step__bar--complete"></div>
+            </div>
+            <div class="fusion-wizard-step__label">
+              <div class="fusion-wizard-step__title">Download bundle</div>
+              <div class="fusion-wizard-step__helper">tools/fetch.sh</div>
+            </div>
+          </div>
+        </fusion-wizard-step>
+        <fusion-wizard-step>
+          <div class="fusion-wizard-step">
+            <div class="fusion-wizard-step__indicator">
+              <div class="fusion-wizard-step__bar fusion-wizard-step__bar--top fusion-wizard-step__bar--complete"></div>
+              <div class="fusion-wizard-step__icon fusion-wizard-step__icon--current">
+                <div class="fusion-wizard-step__dot"></div>
+              </div>
+              <div class="fusion-wizard-step__bar fusion-wizard-step__bar--bottom fusion-wizard-step__bar--empty"></div>
+            </div>
+            <div class="fusion-wizard-step__label">
+              <div class="fusion-wizard-step__title fusion-wizard-step__title--current">Split into layers</div>
+              <div class="fusion-wizard-step__helper">tools/build.py</div>
+            </div>
+          </div>
+        </fusion-wizard-step>
+        <fusion-wizard-step>
+          <div class="fusion-wizard-step">
+            <div class="fusion-wizard-step__indicator">
+              <div class="fusion-wizard-step__bar fusion-wizard-step__bar--top fusion-wizard-step__bar--empty"></div>
+              <div class="fusion-wizard-step__icon fusion-wizard-step__icon--empty"></div>
+              <div class="fusion-wizard-step__bar fusion-wizard-step__bar--bottom fusion-wizard-step__bar--empty"></div>
+            </div>
+            <div class="fusion-wizard-step__label">
+              <div class="fusion-wizard-step__title">Paste into your app</div>
+              <div class="fusion-wizard-step__helper">dist/neo-tokens.css</div>
+            </div>
+          </div>
+        </fusion-wizard-step>
+      </div>
+    </div>
+  </section>
+
+  <section class="demo-sect">
+    <h2 class="heading-2">Breadcrumb</h2>
+    <nav style="display:flex">
+      <fusion-breadcrumb-item><span class="fusion-breadcrumb-item fusion-breadcrumb-item--default">
+        <span class="fusion-breadcrumb-item__content"><a href="#">Apps</a></span>
+        <span class="fusion-breadcrumb-item__right">
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.5" fill="none"
+                  stroke-linecap="round"/></svg></span>
+      </span></fusion-breadcrumb-item>
+      <fusion-breadcrumb-item><span class="fusion-breadcrumb-item fusion-breadcrumb-item--default">
+        <span class="fusion-breadcrumb-item__content"><a href="#">Design system</a></span>
+        <span class="fusion-breadcrumb-item__right">
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.5" fill="none"
+                  stroke-linecap="round"/></svg></span>
+      </span></fusion-breadcrumb-item>
+      <fusion-breadcrumb-item><span class="fusion-breadcrumb-item fusion-breadcrumb-item--default">
+        <span class="fusion-breadcrumb-item__content">Tokens</span>
+      </span></fusion-breadcrumb-item>
+    </nav>
+  </section>
+
+  <section class="demo-sect">
+    <h2 class="heading-2">Chart series colors</h2>
+    <div class="demo-row" id="charts"></div>
+  </section>
+
+  <footer class="body-regular-s text-secondary">
+    Source: <code>NeoDesignSystem__JH1LUF9u9w5ARWT5DKxvA.css</code> —
+    see <code>reference/audit.md</code> for known gaps.
+  </footer>
+</div>
+
+<script>
+// ---- swatch generation (demo scaffolding only) ---------------------------
+const ramps = {
+  neutral: 11, red: 11, orange: 11, yellow: 11, green: 11, blue: 11, indigo: 11
+};
+document.getElementById('ramps').innerHTML = Object.entries(ramps).map(([name, n]) => `
+  <div style="margin-bottom:var(--space-5)">
+    <div class="body-semi-bold-base margin-bottom-2">${name}</div>
+    <div class="demo-grid">
+      ${Array.from({length: n}, (_, i) => `
+        <div>
+          <div class="demo-swatch" style="background:var(--${name}-${i})"></div>
+          <div class="demo-label">${i}</div>
+        </div>`).join('')}
+    </div>
+  </div>`).join('');
+
+document.getElementById('spacing').innerHTML = [1,2,3,4,5,6,7,8,9].map(i => `
+  <div style="display:flex;align-items:center;gap:var(--space-4);margin-bottom:var(--space-2)">
+    <code class="body-regular-s" style="width:80px">space-${i}</code>
+    <div class="demo-bar" style="width:var(--space-${i})"></div>
+  </div>`).join('');
+
+const spinner = size => `
+  <div class="fusion-loading-spinner fusion-loading-spinner--size-${size}">
+    <svg viewBox="0 0 32 32">
+      <circle class="fusion-loading-spinner__background" cx="16" cy="16" r="13"
+              fill="none" stroke-width="3"/>
+      <circle class="fusion-loading-spinner__line" cx="16" cy="16" r="13" fill="none"
+              stroke-width="3" stroke-dasharray="20 62"/>
+    </svg>
+  </div>`;
+document.getElementById('spinners').innerHTML =
+  ['extra-small','small','medium','large'].map(spinner).join('');
+
+document.getElementById('charts').innerHTML =
+  ['info','success','warning','error','purple','cyan','orange','pink'].map(c => `
+    <div>
+      <div class="demo-swatch" style="width:88px;background:var(--chart-${c}-default)"></div>
+      <div class="demo-label">chart-${c}</div>
+    </div>`).join('');
+
+// ---- the only behaviour the CSS needs from you: toggle state classes -----
+document.querySelectorAll('.fusion-accordion-item__header:not(.fusion-accordion-item__header--disabled)')
+  .forEach(header => header.addEventListener('click', () => {
+    const chevron = header.querySelector('.fusion-accordion-item__chevron');
+    const content = header.nextElementSibling;
+    const open = chevron.classList.toggle('fusion-accordion-item__chevron--expanded');
+    if (content) content.hidden = !open;
+  }));
+
+document.getElementById('theme').addEventListener('click', () => {
+  const root = document.documentElement;
+  root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+});
+</script>
+</body>
+</html>

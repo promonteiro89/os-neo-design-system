@@ -1,0 +1,176 @@
+/* ==========================================================================
+   Phosphor icon-font bridge
+   --------------------------------------------------------------------------
+   Hand-authored — NOT generated. `python3 tools/build.py` never touches this.
+
+   Emitted at the end of the ICONS layer of dist/neobase.css.
+
+   NOT extracted from the portal, and deliberately so. The portal draws its
+   icons from an SVG sprite the platform host injects — `<svg class="pds-icon
+   icon-small"><use xlink:href="#ic-solutions">` — and that artwork is not
+   ours to ship. ODC does, however, already load Phosphor 2.0 on every page
+   (Phosphor-Regular.css + Phosphor-IconSizes.css, 1,530 icons, font-family
+   "Phosphor"), so that is what the Icon block renders instead.
+
+   Why these three rules exist: `.pds-icon`, `.icon-small` and `.icon-large`
+   size an icon with `width`/`height`, which is right for an `<svg>` and does
+   nothing for a font glyph — an inline element ignores both. A font icon is
+   sized by `font-size`. Without this bridge a Phosphor icon inherits the
+   surrounding 14px text size and renders 14px inside a 16px box.
+
+   Measured 2026-09-07: with these rules `<i class="ph ph-cube pds-icon
+   icon-small">` computes to exactly 16x16 with font-family Phosphor, matching
+   the portal's icon box.
+
+   Keyed on `.ph` so they only ever touch Phosphor icons — an `<svg
+   class="pds-icon">` is unaffected, so both icon systems can coexist.
+   ========================================================================== */
+
+.ph.pds-icon {
+  font-size: var(--icon-size-base);
+  line-height: 1;
+}
+
+.ph.pds-icon.icon-small {
+  font-size: var(--icon-size-s);
+}
+
+.ph.pds-icon.icon-large {
+  font-size: var(--icon-size-l);
+}
+
+/* --------------------------------------------------------------------------
+   Centring: unwrapping the ODC placeholder chain
+   --------------------------------------------------------------------------
+   The portal puts its `<svg>` as the DIRECT child of the icon container, so a
+   `display:flex; align-items:center` container is exactly icon-sized and the
+   artwork lands dead centre. Ours cannot: an ODC placeholder renders a real
+   `<div class="neo-ph">` (display:block) and a filled block renders
+   `<div class="OSBlockWidget">` (display:inline). So the flex ITEM is a block
+   div that fills the container's full height, and the glyph inside it sits on
+   the text baseline with the inherited `line-height: 24px` under it.
+
+   Measured 2026-09-07 at 1440x900, before these rules:
+
+     | icon           | portal          | ours            |
+     | -------------- | --------------- | --------------- |
+     | aside arrow    | 16x16  0/0/0/0  | 16x24  T2.5 B5.5|
+     | forge          | 16x16  0/0/0/0  | 16x24  T2.5 B5.5|
+     | header help    | 32x32  8/8/8/8  | 32x32  T6.5 B9.5|
+     | search         | 16x16  gaps 0   | 16x17  B0.5     |
+     | menu chevron   | 16x16  T1.5     | 16x16  T2.5     |
+
+   An audit of all 43 rendered Phosphor icons found 1 centred, 42 off.
+
+   `display: contents` removes the wrapper divs from layout entirely, which
+   makes the `<i>` itself the flex item — the same shape the portal has. That
+   alone fixed 39 of 43.
+
+   The stragglers were the three `.unified-aside-menu-header-*` containers,
+   which are `display:block` with `line-height: 24px`, so no flex centring was
+   reaching them at all. `vertical-align: middle` on the glyph made it WORSE
+   (skew 2.5 -> 5.8, because it aligns to the parent's x-height, not its box).
+   Making those containers flex is what works.
+
+   Note the menu-header icons end up BETTER centred than the portal's own:
+   the portal renders them 1.5px high in their box, we render them at 0. That
+   is a deliberate departure — matching a 1.5px rounding artefact is not worth
+   a rule, and the icon reads as centred either way.
+
+   Everything is scoped `:has(.ph.pds-icon)` so an `<svg class="pds-icon">`
+   keeps the portal's own layout untouched and the two systems still coexist.
+
+   `.unified-expand` is deliberately NOT in the flex list. Its own base rule
+   already declares flex + centring and then ends in `display: none`; it is
+   revealed only by `body.is-unified-phone/.is-unified-tablet`. A
+   `.unified-expand:has(...)` selector scores (0,2,0) and so BEATS that
+   `display: none` — adding it here put the hamburger on screen at desktop
+   width, overlapping the logo. Caught by a header diff on 2026-09-07.
+
+   After: 43 of 43 vertically centred, and arrow/chevron/help/forge/search/
+   primary-item all match the portal's box and gaps exactly.
+   -------------------------------------------------------------------------- */
+
+.OSBlockWidget:has(> .ph.pds-icon),
+.svg-code:has(> .OSBlockWidget > .ph.pds-icon),
+.neo-ph:has(> .OSBlockWidget > .ph.pds-icon),
+.neo-ph:has(> .neo-ph > .OSBlockWidget > .ph.pds-icon) {
+  display: contents;
+}
+
+.unified-aside-item-icon:has(.ph.pds-icon),
+.unified-aside-item-arrow:has(.ph.pds-icon),
+.unified-aside-menu-header-icon:has(.ph.pds-icon),
+.unified-aside-menu-header-icon-left:has(.ph.pds-icon),
+.unified-aside-menu-header-icon-right:has(.ph.pds-icon),
+.unified-header-additional-blocks-support-body:has(.ph.pds-icon),
+.unified-header-button-icon:has(.ph.pds-icon),
+.input-clear-search-icon-left:has(.ph.pds-icon),
+.svg-code:has(.ph.pds-icon) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ==========================================================================
+   Placeholder unwrapping beyond icons: the sticky header and the avatar
+   --------------------------------------------------------------------------
+   Same root cause as the icon centring above — an ODC placeholder renders a
+   real `<div class="neo-ph">` and a filled block a `<div class="OSBlockWidget">`
+   between a portal container and the child the portal's CSS expects to be
+   directly inside it. Two more places where that changed the rendering, both
+   found 2026-09-07 from a user report.
+
+   1. THE HEADER SCROLLED AWAY INSTEAD OF STICKING.
+
+   `old-neo-design-system.css` carries `.unified-header{position:sticky
+   !important}`, which overrides the shell's own `position: fixed`. Both the
+   portal and we compute `sticky`. On the portal it works because the header is
+   a DIRECT child of `body`, and body is the scroll container with 939px of
+   content — so the header has room to travel and pins at top: 0.
+
+   Ours sat inside `OSBlockWidget` (display:inline, height 56) inside `neo-ph`
+   (height 56). A sticky element can only move within its containing block, and
+   that block was exactly as tall as the header — zero travel — so it scrolled
+   off with its parent. Measured before the fix: scrolling the
+   `.active-screen.screen-container` scrollport to 39 put the header at
+   top -39 and the logo at -23.5. After: header top 0, logo 15.5, at any
+   scroll position. This is the "weird stuff on scroll".
+
+   Note the scrollport differs from the portal's and that is NOT the bug: ODC
+   scrolls `.active-screen.screen-container`, the portal scrolls `body`. Sticky
+   works against whichever, once the containing block is tall enough.
+
+   2. THE HEADER AVATAR SAT 8px OUT OF ITS BOX.
+
+   `.unified-header-login-avatar span` is `position: absolute` with NO top/left,
+   so it renders at its STATIC position — where it would have sat in flow. On
+   the portal the span is the direct child of a 32x32 `display:flex;
+   align-items:center; justify-content:center` container, so its static position
+   is centred: gaps 4/4/4/4 around the 24x24 avatar.
+
+   Ours had `neo-ph` in between. With the absolute span contributing nothing to
+   layout, that wrapper computed 0x0 and centred as a zero-size flex item at the
+   container's midpoint, putting the span's static position at (16,16) — so the
+   avatar ran 8px past the bottom-right: gaps 16 / -8 / -8 / 16. Restoring the
+   span as the direct flex child restores 4/4/4/4.
+
+   Verified after both rules: avatar 4/4/4/4, header pinned at 0 through the
+   full scroll range, and the icon audit still 0 off-centre.
+
+   NOT included: a rule for `.unified-header-portfolio-trigger-description`.
+   Its `[data-expression]` span looks like it overflows (scrollWidth 337 vs
+   clientWidth 256) but the PORTAL reports exactly the same numbers — the
+   element is `overflow:hidden; text-overflow:ellipsis; white-space:nowrap` and
+   is meant to ellipsize. Adding a rule there would have been a fix for a
+   non-bug.
+   ========================================================================== */
+
+.OSBlockWidget:has(> .unified-header),
+.neo-ph:has(> .OSBlockWidget > .unified-header) {
+  display: contents;
+}
+
+.unified-header-login-avatar > .neo-ph {
+  display: contents;
+}

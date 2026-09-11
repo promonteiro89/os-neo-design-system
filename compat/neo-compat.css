@@ -1,0 +1,72 @@
+/* ==========================================================================
+   Neo compatibility shims
+   --------------------------------------------------------------------------
+   Hand-authored — NOT generated, NOT part of the upstream bundle.
+   `python3 tools/build.py` never touches this file.
+
+   The upstream bundle references 7 custom properties it never defines, plus 3
+   that only exist in the ODC portal shell. A var() reference with no definition
+   and no fallback makes the browser drop the whole declaration, so those rules
+   silently do nothing in a standalone app.
+
+   Every value below is derived from evidence inside the bundle itself (cited
+   per block) — none is invented. Load this AFTER the Neo CSS.
+   See reference/audit.md sections 1 and 2 for the full reference list.
+   ========================================================================== */
+
+:root {
+  /* ---- 1. Broken references in the upstream bundle ---------------------- */
+
+  /* NOTE: --space-s, --space-base, --space-m and --border-size-s below are now
+     ALSO defined inside dist/neobase.css (via compat/neo-missing-tokens.css,
+     folded into its TOKENS layer), so the bundle is self-sufficient. They stay
+     here for the tokens-only path — dist/neo-tokens.css + this file, with no
+     bundle. The definitions are identical, so loading both is harmless. */
+
+  /* `.fusion-accordion-item__header:focus-visible { outline: 2px solid var(--border-focus-default) }`
+     Every other focus ring in the bundle uses --border-focus. */
+  --border-focus-default: var(--border-focus);
+
+  /* `border: var(--border-size-s) solid …` on the carousel. The bundle has no
+     border-width scale at all; --size-1 is its 1px step, and every hand-written
+     border elsewhere in the bundle is `1px solid`. */
+  --border-size-s: var(--size-1);
+
+  /* `.fusion-carousel .splide__arrow { box-shadow: var(--box-shadow-0) }`
+     Transposed name — the scale is --shadow-0 … --shadow-4. */
+  --box-shadow-0: var(--shadow-0);
+
+  /* `.fusion-icon--color-icon-default { color: var(--icon-default) }`
+     No --icon-default exists; --icon-primary is the default icon color used by
+     `.icon-primary` and by every component's default icon state. */
+  --icon-default: var(--icon-primary);
+
+  /* Leftovers from the old t-shirt spacing scale, still referenced by
+     fusion-pagination. Mapped using the bundle's own legacy utility aliases,
+     which are the authoritative translation:
+        .margin-s    { margin: var(--space-2) }   ->  8px
+        .margin-base { margin: var(--space-4) }   -> 16px
+        .margin-m    { margin: var(--space-6) }   -> 24px */
+  --space-s: var(--space-2);
+  --space-base: var(--space-4);
+  --space-m: var(--space-6);
+
+  /* ---- 2. Provided by the ODC portal shell ----------------------------- */
+
+  /* NOTHING HERE ANY MORE — and that is deliberate.
+
+     This block used to zero --unified-header-height, --unified-banner-height
+     and --unified-aside-width-expanded, on the assumption that your app has no
+     portal chrome. That assumption died when the shell was folded into the
+     single shipped artifact: dist/neobase.css now ALWAYS carries the host
+     shell and defines all three properly (56px, 0px, 256px).
+
+     Because this file is documented as "load AFTER the Neo CSS", those zeros
+     won every time. Measured 2026-09-07: the nav rail computed to 0px wide and
+     the header to 0px tall in templates/portal-shell.html, purely from this
+     block overriding a correct value with a stale one.
+
+     If you genuinely want a chrome-less app, do not re-add these — drop the
+     shell from the build instead (tools/neobase.py, the HOST SHELL layer), so
+     the rules and their dimensions disappear together. */
+}

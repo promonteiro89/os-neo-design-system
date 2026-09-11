@@ -1,0 +1,15 @@
+PROVENANCE AND LICENCE
+
+This repository restructures the stylesheet an OutSystems Developer Cloud
+tenant serves for its portal. That CSS is OutSystems' product styling and is
+not ours to license.
+
+NO LICENCE IS GRANTED. The extracted CSS (reference/raw/, src/, dist/) and
+everything derived from it remain OutSystems' property. There is deliberately
+no LICENSE file: adding one would assert rights this repository's authors do
+not hold. Use it with that understanding, and expect it to be taken down if
+the rights holder asks.
+
+The Phosphor icon pack under dist/o11-phosphor/ is the exception: Phosphor
+Icons is MIT licensed and its LICENSE ships alongside the font. The Python
+tooling under tools/ is the authors' own work.

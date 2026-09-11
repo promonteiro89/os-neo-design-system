@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portal shell + fusion-layout — complete layout</title>
+
+<!-- ONE file, and that is the whole point. dist/neobase.css carries the tokens
+     (including the four properties the upstream bundle references but never
+     defines), the host shell, and both compat layers, already in the portal's
+     own cascade order. Do NOT also load compat/neo-compat.css here: it defines
+     the same four, and it used to zero the --unified-* chrome dimensions, which
+     collapsed the rail to 0px when loaded after the bundle. -->
+<link rel="stylesheet" href="../dist/neobase.css">
+
+<style>
+  /* ----------------------------------------------------------------------
+     GLUE — three declarations, not from the portal.
+
+     The shell's host-integration rules only *reset* offsets to 0; the real
+     ones come from the host app's own theme (old-neo-design-system.css),
+     which we do not ship. The Neo bundle supplies two of the three for free
+     via `body:has(fusion-layout) #reactContainer` — margin-left and height —
+     leaving only the vertical offset, because the top bar is position:fixed.
+
+     `body { margin: 0 }` matters more than it looks: the Neo reset does NOT
+     zero it (the portal gets that from _Basic.css). Leave it out and the
+     default 8px UA margin pushes the content to 264/64 instead of 256/56,
+     misaligning it against the fixed chrome. Measured, not guessed.
+     ---------------------------------------------------------------------- */
+  html, body { height: 100%; }
+  body { margin: 0; }
+  #reactContainer { margin-top: var(--unified-header-height); }
+  /* Neo's own rule already handles the rest:
+       body:has(fusion-layout) #reactContainer {
+         height: calc(100% - var(--unified-header-height) - var(--unified-banner-height));
+         margin-left: var(--unified-aside-width-expanded);
+       }
+     …but it hardcodes the EXPANDED width and never checks .is-aside-expanded,
+     so collapsing the rail to 72px would leave a 184px gap. In the portal the
+     offset lives on .screen-container and is keyed off that class; since we
+     offset #reactContainer instead, we need the conditional ourselves.
+     Specificity note: (1,1,1) here beats Neo's (1,0,2), so these win. */
+  body:not(.is-aside-expanded) #reactContainer { margin-left: var(--unified-aside-width, 72px); }
+  /* Tablet and phone: the rail overlays the content, so no offset at all.
+     Neo ships this as `.is-unified-tablet #reactContainer`, which expects the
+     class on an ANCESTOR of the container — on <body> it never matches. */
+  body.is-unified-tablet #reactContainer,
+  body.is-unified-phone  #reactContainer { margin-left: 0; }
+
+  /* Demo chrome only. */
+  .tpl-switch { position: fixed; right: var(--space-4); bottom: var(--space-4); z-index: 200;
+                display: flex; flex-wrap: wrap; gap: var(--space-2); max-width: 300px;
+                background: var(--surface-2-default); border: 1px solid var(--border-subtle);
+                border-radius: var(--border-radius-3); box-shadow: var(--shadow-3);
+                padding: var(--space-3); }
+  .tpl-card { background: var(--surface-1-default); border: 1px solid var(--border-subtle);
+              border-radius: var(--border-radius-2); padding: var(--space-5); }
+  .tpl-btn  { height: var(--component-size-s); padding: 0 var(--space-4); cursor: pointer;
+              font: var(--actions-base); border-radius: var(--border-radius-2);
+              background: var(--button-background-default); color: var(--button-text-default);
+              border: 1px solid var(--button-border-default); box-shadow: var(--shadow-0); }
+  .tpl-btn--primary { background: var(--button-primary-background-default);
+                      color: var(--button-primary-text-default);
+                      border-color: var(--button-primary-border-default); box-shadow: none; }
+  table.tpl-table { width: 100%; border-collapse: collapse; font: var(--body-regular-base); }
+  table.tpl-table th { background: var(--table-header-background); text-align: left;
+                       font: var(--body-semi-bold-s); padding: var(--space-3) var(--space-4);
+                       color: var(--text-secondary); }
+  table.tpl-table td { padding: var(--space-3) var(--space-4);
+                       border-top: 1px solid var(--border-subtle); }
+</style>
+</head>
+
+<!--
+  ============================================================================
+  The complete ODC portal layout: chrome + page scaffold.
+
+    .unified-header   top bar    (fixed, 56px)          from prod.unified.css
+    .unified-aside    nav rail   (fixed, 256px)         from prod.unified.css
+    #reactContainer   host       (offset by both)       glue, above
+      fusion-layout   page       (header + content)     from the Neo bundle
+
+  BODY CLASSES ARE REQUIRED. The shell is driven by classes the portal sets
+  from JavaScript, not by media queries — 45 rules key off .is-aside-expanded
+  alone. Live portal, verbatim:
+      <body class="is-aside-expanded osx is-unified-desktop desktop landscape">
+
+  STATE CLASSES, all set by JS in the portal:
+    .unified-aside-item--level0.is-open   group header, expanded
+    .unified-aside-item--level1.is-active selected page
+    .unified-aside-grid.is-displayed      group body visible
+    .unified-aside-secondary.is-open      drilled into a sub-menu
+  The aside is a DRILL-DOWN menu: .unified-aside-primary is the root level,
+  .unified-aside-secondary is the level you navigated into. That is why the
+  header shows "< Management" — you are one level deep.
+
+  Group labels are uppercased by CSS. The DOM says "Admin"; you see "ADMIN".
+  ============================================================================
+-->
+
+<body class="is-aside-expanded is-unified-desktop desktop landscape">
+
+<!-- Scrim behind the rail. The portal creates this from JS and prepends it to
+     <body>; clicking it drops .is-aside-expanded. Invisible on desktop, 0.3
+     opacity on tablet and phone where the rail overlays the content. -->
+<div class="unified-aside-shield"></div>
+
+<!-- ======================================================================
+     TOP BAR
+     ===================================================================== -->
+<div class="unified-header">
+  <!-- background-image comes from the CSS; the element is intentionally empty
+       (font-size: 0). Assets live in dist/assets/. -->
+  <a class="unified-header-logo" href="#" aria-label="OutSystems"></a>
+  <div class="unified-header-divider"></div>
+
+  <div class="unified-tenant-dropdown">
+    <div class="unified-header-portfolio">
+      <div class="unified-header-portfolio-body">
+        <div class="unified-header-portfolio-trigger">
+          <div class="unified-header-portfolio-trigger-content">
+            <div class="unified-header-portfolio-trigger-description-row">
+              <div class="unified-header-portfolio-trigger-description"
+                   title="OutSystems Platform of Example Organization">
+                OutSystems Platform of Example Organization
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="unified-header-buttons">
+    <div class="unified-header-buttons-inner">
+      <a class="unified-header-button-link" href="#">
+        <button class="unified-header-button">
+          <span class="unified-header-button-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none">
+              <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" stroke="currentColor"
+                    stroke-width="1.8" stroke-linejoin="round"/>
+              <path d="M12 12l8-4.5M12 12v9M12 12L4 7.5" stroke="currentColor"
+                    stroke-width="1.8" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span class="unified-header-button-label">Forge</span>
+        </button>
+      </a>
+    </div>
+    <div class="unified-header-buttons-divider"></div>
+  </div>
+
+
+  <div class="unified-header-additional-blocks">
+    <div class="unified-header-additional-blocks-support">
+      <div class="unified-header-additional-blocks-support-body">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none">
+          <circle cx="12" cy="12" r="9.2" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M9.6 9.3a2.5 2.5 0 114 2c-.9.7-1.6 1.2-1.6 2.2" stroke="currentColor"
+                stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="12" cy="17" r="1" fill="currentColor"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="unified-header-login">
+    <div class="unified-header-login-body">
+      <span class="unified-header-login-avatar">
+        <!-- .avatar / .avatar-amber are the LEGACY avatar classes, and they
+             ARE in the Neo bundle (dist/neobase.css) — this is what the portal
+             itself uses here, not fusion-avatar. The inline styles below only
+             keep this template standalone; drop them when the bundle is loaded. -->
+        <span class="avatar avatar-amber" style="display:inline-flex;align-items:center;
+              justify-content:center;width:32px;height:32px;border-radius:100%;
+              background:var(--avatar-amber);color:var(--black);
+              font:var(--body-semi-bold-s)">RM</span>
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================================
+     NAV RAIL. Width comes from `body.is-aside-expanded .unified-aside`.
+     Drop .is-aside-expanded from <body> and it collapses to a 72px rail.
+     ===================================================================== -->
+<div class="unified-aside">
+  <div class="unified-aside-inner">
+    <div class="unified-aside-menu">
+
+      <div class="unified-aside-menu-header">
+        <div class="unified-aside-menu-header-icon-left icon-small">
+          <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2"
+                  fill="none" stroke-linecap="round"/></svg>
+        </div>
+        <span class="unified-aside-menu-header-title">Management</span>
+        <div class="unified-aside-menu-header-loading"></div>
+      </div>
+      <div class="unified-aside-menu-header-divider"></div>
+
+      <div class="unified-aside-menu-content">
+        <!-- Root level. Hidden while the secondary level is open — kept here
+             because the shell animates between the two. -->
+        <div class="unified-aside-primary"></div>
+
+        <!-- The level you drilled into. -->
+        <div class="unified-aside-secondary is-open">
+
+          <div class="unified-aside-section">
+            <div class="unified-aside-item unified-aside-item--level0 is-open" data-children="true" data-parentid="admin">
+              <div class="unified-aside-item-arrow">
+                <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2"
+                        fill="none" stroke-linecap="round"/></svg>
+              </div>
+              <div>
+                <div class="unified-aside-item-border"></div>
+                <div class="unified-aside-item-label"><span>Admin</span></div>
+              </div>
+            </div>
+            <div class="unified-aside-grid is-displayed" data-parentid="admin">
+              <div class="unified-aside-wrapper">
+                <div class="unified-aside-item unified-aside-item--level1 is-active">
+                  <a href="#">
+                    <div class="unified-aside-item-border"></div>
+                    <div class="unified-aside-item-label"><span>Organization</span></div>
+                  </a>
+                </div>
+                <div class="unified-aside-item unified-aside-item--level1">
+                  <a href="#">
+                    <div class="unified-aside-item-border"></div>
+                    <div class="unified-aside-item-label"><span>Subscription</span></div>
+                  </a>
+                </div>
+                <div class="unified-aside-item unified-aside-item--level1">
+                  <a href="#">
+                    <div class="unified-aside-item-border"></div>
+                    <div class="unified-aside-item-label"><span>Audit trail</span></div>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="unified-aside-section">
+            <div class="unified-aside-item unified-aside-item--level0 is-open" data-children="true" data-parentid="govern">
+              <div class="unified-aside-item-arrow">
+                <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2"
+                        fill="none" stroke-linecap="round"/></svg>
+              </div>
+              <div>
+                <div class="unified-aside-item-border"></div>
+                <div class="unified-aside-item-label"><span>Govern</span></div>
+              </div>
+            </div>
+            <div class="unified-aside-grid is-displayed" data-parentid="govern">
+              <div class="unified-aside-wrapper">
+                <div class="unified-aside-item unified-aside-item--level1">
+                  <a href="#"><div class="unified-aside-item-border"></div>
+                    <div class="unified-aside-item-label"><span>Users</span></div></a>
+                </div>
+                <div class="unified-aside-item unified-aside-item--level1">
+                  <a href="#"><div class="unified-aside-item-border"></div>
+                    <div class="unified-aside-item-label"><span>End-user groups</span></div></a>
+                </div>
+                <div class="unified-aside-item unified-aside-item--level1">
+                  <a href="#"><div class="unified-aside-item-border"></div>
+                    <div class="unified-aside-item-label"><span>API clients</span></div></a>
+                </div>
+                <div class="unified-aside-item unified-aside-item--level1">
+                  <a href="#"><div class="unified-aside-item-border"></div>
+                    <div class="unified-aside-item-label"><span>Organization roles</span></div></a>
+                </div>
+                <div class="unified-aside-item unified-aside-item--level1">
+                  <a href="#"><div class="unified-aside-item-border"></div>
+                    <div class="unified-aside-item-label"><span>Identity providers</span></div></a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="unified-aside-section">
+            <div class="unified-aside-item unified-aside-item--level0 is-open" data-children="true" data-parentid="maintain">
+              <div class="unified-aside-item-arrow">
+                <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2"
+                        fill="none" stroke-linecap="round"/></svg>
+              </div>
+              <div>
+                <div class="unified-aside-item-border"></div>
+                <div class="unified-aside-item-label"><span>Maintain</span></div>
+              </div>
+            </div>
+            <div class="unified-aside-grid is-displayed" data-parentid="maintain">
+              <div class="unified-aside-wrapper">
+                <div class="unified-aside-item unified-aside-item--level1">
+                  <a href="#"><div class="unified-aside-item-border"></div>
+                    <div class="unified-aside-item-label"><span>Platform updates</span></div></a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="unified-aside-section">
+            <div class="unified-aside-item unified-aside-item--level0 is-open" data-children="true" data-parentid="configure">
+              <div class="unified-aside-item-arrow">
+                <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2"
+                        fill="none" stroke-linecap="round"/></svg>
+              </div>
+              <div>
+                <div class="unified-aside-item-border"></div>
+                <div class="unified-aside-item-label"><span>Configure</span></div>
+              </div>
+            </div>
+            <div class="unified-aside-grid is-displayed" data-parentid="configure">
+              <div class="unified-aside-wrapper">
+                <div class="unified-aside-item unified-aside-item--level1">
+                  <a href="#"><div class="unified-aside-item-border"></div>
+                    <div class="unified-aside-item-label"><span>Agent guardrails</span></div></a>
+                </div>
+                <div class="unified-aside-item unified-aside-item--level1">
+                  <a href="#"><div class="unified-aside-item-border"></div>
+                    <div class="unified-aside-item-label"><span>Content security policy</span></div></a>
+                </div>
+                <div class="unified-aside-item unified-aside-item--level1">
+                  <a href="#"><div class="unified-aside-item-border"></div>
+                    <div class="unified-aside-item-label"><span>Domains</span></div></a>
+                </div>
+                <div class="unified-aside-item unified-aside-item--level1">
+                  <a href="#"><div class="unified-aside-item-border"></div>
+                    <div class="unified-aside-item-label"><span>Emails</span></div></a>
+                </div>
+                <div class="unified-aside-item unified-aside-item--level1">
+                  <a href="#"><div class="unified-aside-item-border"></div>
+                    <div class="unified-aside-item-label"><span>Private gateways</span></div></a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="unified-aside-section">
+            <div class="unified-aside-item unified-aside-item--level0 is-open" data-children="true" data-parentid="outsystems-11">
+              <div class="unified-aside-item-arrow">
+                <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2"
+                        fill="none" stroke-linecap="round"/></svg>
+              </div>
+              <div>
+                <div class="unified-aside-item-border"></div>
+                <div class="unified-aside-item-label"><span>OutSystems 11</span></div>
+              </div>
+            </div>
+            <div class="unified-aside-grid is-displayed" data-parentid="outsystems-11">
+              <div class="unified-aside-wrapper">
+                <div class="unified-aside-item unified-aside-item--level1">
+                  <a href="#"><div class="unified-aside-item-border"></div>
+                    <div class="unified-aside-item-label"><span>Infrastructures</span></div></a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================================
+     HOST CONTAINER. #reactContainer is the id the Neo bundle keys its
+     offset rule off — keep it.
+     ===================================================================== -->
+<div id="reactContainer">
+<fusion-layout>
+<div class="fusion-layout fusion-layout--scroll-type--page" id="layout">
+  <div class="fusion-layout__main">
+    <div class="fusion-layout__content">
+
+      <div class="fusion-layout__header">
+        <fusion-layout-header>
+        <div class="fusion-layout-header" id="header">
+          <div class="fusion-layout-header__inner">
+            <div class="fusion-layout-header__content">
+              <div class="fusion-layout-header__left-content">
+                <div class="fusion-layout-header__title">
+                  <fusion-page-title>
+                  <div class="fusion-page-title">
+                    <div class="fusion-page-title__title"><span>Organization</span></div>
+                  </div>
+                  </fusion-page-title>
+                </div>
+              </div>
+              <div class="fusion-layout-header__right-content">
+                <div class="fusion-layout-header__actions"></div>
+              </div>
+            </div>
+            <div class="fusion-layout-header__description">
+              Get an overview of your organization and its details.
+            </div>
+            <div class="fusion-layout-header__details">
+              <div class="metadata-container">
+                <div class="metadata-container-label">Platform region</div>
+                <div class="metadata-container-content">
+                  <div class="metadata-container-title"><span>Europe (Frankfurt)</span></div>
+                </div>
+              </div>
+              <div class="metadata-container">
+                <div class="metadata-container-label">Data platform region</div>
+                <div class="metadata-container-content">
+                  <div class="metadata-container-title"><span>Europe (Frankfurt)</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        </fusion-layout-header>
+      </div>
+
+      <div class="fusion-layout__main-content">
+
+        <fusion-layout-section-structure>
+        <div class="fusion-layout-section-structure">
+          <div class="fusion-layout-section-structure__header">
+            <div slot="header"><div class="ph" style="display:flex;flex:1;gap:var(--space-6)">
+              <div class="fusion-layout-section-structure__header-content">
+                <div class="fusion-layout-section-structure__title">Details</div>
+              </div>
+            </div></div>
+          </div>
+          <div class="fusion-layout-section-structure__content">
+            <div style="display:grid;gap:var(--space-5)">
+              <div class="tpl-card">
+                <div class="body-semi-bold-l margin-bottom-4">Organization name</div>
+                <div class="body-regular-base">OutSystems Platform of Example Organization</div>
+              </div>
+              <div class="tpl-card">
+                <div class="body-semi-bold-l margin-bottom-4">Domain</div>
+                <div class="body-regular-base">your-tenant.outsystems.dev</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        </fusion-layout-section-structure>
+
+        <fusion-layout-section-structure>
+        <div class="fusion-layout-section-structure">
+          <div class="fusion-layout-section-structure__header">
+            <div slot="header"><div class="ph" style="display:flex;flex:1;gap:var(--space-6);
+                 align-items:flex-start">
+              <div class="fusion-layout-section-structure__header-content">
+                <div class="fusion-layout-section-structure__title">Stages</div>
+              </div>
+              <button class="tpl-btn">Reorder stages</button>
+            </div></div>
+          </div>
+          <div class="fusion-layout-section-structure__content">
+            <div class="tpl-card" style="padding:0;overflow:hidden">
+              <table class="tpl-table">
+                <thead><tr>
+                  <th>Order</th><th>Stage</th><th>Type</th><th>Runtime region</th><th>Status</th>
+                </tr></thead>
+                <tbody>
+                  <tr><td>1</td><td>Development</td><td>Development</td>
+                      <td>Europe (Frankfurt)</td><td><span class="tpl-badge">Online</span></td></tr>
+                  <tr><td>2</td><td>Testing</td><td>Non-Production</td>
+                      <td>Europe (Frankfurt)</td><td><span class="tpl-badge">Online</span></td></tr>
+                  <tr><td>3</td><td>Pre-Production</td><td>Non-Production</td>
+                      <td>Europe (Frankfurt)</td><td><span class="tpl-badge">Online</span></td></tr>
+                  <tr><td>4</td><td>Production</td><td>Production</td>
+                      <td>Europe (Frankfurt)</td><td><span class="tpl-badge">Online</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        </fusion-layout-section-structure>
+
+      </div>
+    </div>
+  </div>
+</div>
+</fusion-layout>
+</div>
+
+<style>
+  /* Badge: --badge-success-* tokens exist in Neo, but the .badge component CSS
+     does not — it lives in outsystems-ui-theme.css. Built from tokens here. */
+  .tpl-badge { display: inline-flex; align-items: center; height: var(--size-7);
+               padding: 0 var(--space-3); border-radius: var(--border-radius-1);
+               font: var(--body-regular-s);
+               background: var(--badge-success-background);
+               border: 1px solid var(--badge-success-border);
+               color: var(--badge-success-text); }
+</style>
+
+<div class="tpl-switch">
+  <button class="fusion-tag fusion-tag--choice" data-act="theme">
+    <span class="fusion-tag__content"><span class="fusion-tag__label">Theme</span></span></button>
+  <button class="fusion-tag fusion-tag--choice fusion-tag--selected" data-act="aside">
+    <span class="fusion-tag__content"><span class="fusion-tag__label">Expand rail</span></span></button>
+  <button class="fusion-tag fusion-tag--choice" data-act="mode">
+    <span class="fusion-tag__content"><span class="fusion-tag__label">Tablet mode</span></span></button>
+  <button class="fusion-tag fusion-tag--choice" data-act="collapse">
+    <span class="fusion-tag__content"><span class="fusion-tag__label">Collapse header</span></span></button>
+</div>
+
+<script>
+document.querySelectorAll('.tpl-switch [data-act]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const c = document.body.classList;
+    switch (btn.dataset.act) {
+      case 'theme':
+        document.documentElement.dataset.theme =
+          document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+        return;
+      case 'aside':
+        btn.classList.toggle('fusion-tag--selected', c.toggle('is-aside-expanded'));
+        return;
+      case 'mode': {
+        const tablet = c.toggle('is-unified-tablet');
+        c.toggle('is-unified-desktop', !tablet);
+        btn.classList.toggle('fusion-tag--selected', tablet);
+        return;
+      }
+      case 'collapse':
+        btn.classList.toggle('fusion-tag--selected',
+          document.getElementById('header')
+                  .classList.toggle('fusion-layout-header--collapsed'));
+        return;
+    }
+  });
+});
+
+/* Clicking the scrim collapses the rail, as on the portal. */
+document.querySelector('.unified-aside-shield')
+  .addEventListener('click', () => {
+    document.body.classList.remove('is-aside-expanded');
+    document.querySelector('.tpl-switch [data-act="aside"]')
+            .classList.remove('fusion-tag--selected');
+  });
+
+/* Group collapse — the portal's own mechanism. The header and its body are
+   paired by data-parentid, not by nesting. is-transitioning must be added on
+   open and removed on transitionend, or the wrapper stays scrollable. */
+document.querySelectorAll('.unified-aside-item--level0[data-children="true"]')
+  .forEach(item => {
+    item.addEventListener('click', () => {
+      const grid = document.querySelector(
+        '.unified-aside-grid[data-parentid="' + item.dataset.parentid + '"]');
+      if (!grid) return;
+      const open = !item.classList.contains('is-open');
+      item.classList.toggle('is-open', open);
+      if (!open) { grid.classList.remove('is-displayed'); return; }
+      grid.classList.add('is-displayed', 'is-transitioning');
+      const done = () => {
+        grid.classList.remove('is-transitioning');
+        grid.removeEventListener('transitionend', done);
+      };
+      grid.addEventListener('transitionend', done);
+    });
+  });
+</script>
+</body>
+</html>

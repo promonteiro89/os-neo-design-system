@@ -1,0 +1,125 @@
+/* ==========================================================================
+   Portal shell dimensions
+   --------------------------------------------------------------------------
+   Hand-authored — NOT generated. `tools/build.py` never touches this file.
+
+   You do NOT need to load this by hand if you use dist/neobase.css — the
+   bundle already contains it, emitted inside the HOST SHELL layer, which
+   tools/neobase.py places after components/icons/utilities to match the
+   portal's own load order.
+
+   It matters only for the split path, where you assemble the parts yourself:
+
+       dist/neo-tokens.css
+       compat/neo-compat.css       -> tokens-only shims
+       dist/neo-shell.css
+       compat/neo-shell-compat.css -> chrome dimensions  <- last
+
+   The --unified-* block that neo-compat.css used to zero is gone; it broke the
+   bundle whenever neo-compat was loaded afterwards. See that file for why.
+
+   Why this is needed: prod.unified.css never defines these, but uses them.
+   In the portal they come from legacy-neo-theme.css, which we do not ship.
+
+   To be precise about the damage, since it is narrower than it first looks:
+   the core sizing rules ship a literal fallback declaration ahead of the
+   variable — `width: 256px; width: var(--unified-aside-width-expanded, 256px)`
+   — so the nav rail and top bar render at the right size even with nothing
+   defined. What genuinely breaks without these are the 8 declarations that
+   use them bare: banner positioning (banner.css left/top/width) and the
+   content-shield transforms in host-integration.css.
+
+   Defining them here is still worth doing: it fixes those 8, and it puts the
+   chrome dimensions in one overridable place instead of leaving them implicit
+   in fallback values.
+
+   Values are the portal's own — read from legacy-neo-theme.css and confirmed
+   against live computed styles at /configurations/organization (aside 256px,
+   header 56px).
+   ========================================================================== */
+
+:root {
+  /* Expanded nav rail. Applies when <body> has .is-aside-expanded. */
+  --unified-aside-width-expanded: 256px;
+
+  /* Collapsed rail. The shell already falls back to 72px, so this is only
+     here to make the value visible and overridable. */
+  --unified-aside-width: 72px;
+
+  /* Top bar. */
+  --unified-header-height: 56px;
+
+  /* Announcement strip above the header. prod.unified.css sets this itself
+     (0px by default, 56px when a banner is present) — do not hardcode it
+     unless you are replacing the banner logic too. */
+}
+
+/* --------------------------------------------------------------------------
+   Required host classes
+   --------------------------------------------------------------------------
+   The shell is driven by classes on <body>, set by the portal's JavaScript
+   rather than by media queries — 45 rules key off .is-aside-expanded alone:
+
+     .is-aside-expanded    nav rail expanded (omit for the collapsed rail)
+     .is-unified-desktop   >= tablet breakpoint          } pick exactly one;
+     .is-unified-tablet    aside overlays the content    } the portal sets
+     .is-unified-phone     aside is a full-screen sheet  } these from JS
+
+   The live portal uses, verbatim:
+     <body class="is-aside-expanded osx is-unified-desktop desktop landscape">
+
+   If you want real responsiveness you must set these yourself on resize —
+   there is no CSS-only fallback. The thresholds are not media queries and are
+   not guessable; these are the portal's own, read out of its prod.unified.js:
+
+     innerWidth <= 543   is-unified-phone
+     innerWidth <= 1199  is-unified-tablet
+     otherwise           is-unified-desktop
+
+     const m = w => w <= 543 ? 'phone' : w <= 1199 ? 'tablet' : 'desktop';
+     const sync = () => {
+       const c = document.body.classList;
+       c.remove('is-unified-phone', 'is-unified-tablet', 'is-unified-desktop');
+       c.add('is-unified-' + m(innerWidth));
+     };
+     addEventListener('resize', sync); sync();
+
+   The portal pairs that with `is-aside-expanded`, off the SAME 1199 boundary:
+   at <= 1199 it removes the class, above it adds it, persisting the choice.
+   -------------------------------------------------------------------------- */
+
+
+/* --------------------------------------------------------------------------
+   Header positioning: the portal computes `sticky`, not `fixed`
+   --------------------------------------------------------------------------
+   MEASURED 2026-09-03 at /configurations/audit-trail. The extracted
+   prod.unified.css declares `.unified-header { position: fixed }`, but the
+   live portal computes **sticky**, so a later rule we did not capture wins.
+
+   The difference is structural, not cosmetic. `fixed` takes the header out of
+   flow, so nothing pushes the app content down and it renders UNDER the bar.
+   `sticky` keeps the 56px box in flow — which is exactly what puts the
+   portal's #reactContainer at top 56 with no padding or margin anywhere:
+
+       body                     0,0     1934x523   padding 0
+       div.unified-header       0,0     1934x56    position: sticky  <- occupies flow
+       div#reactContainer       0,56    1934x467   margin 0, padding 0
+
+   Rendering the header from a Block puts it in the same flow position (first
+   child, before the content placeholder), so sticky reproduces the offset for
+   free. Measured after this fix: header 0,0 1600x56, layout 0,56, main content
+   left 256 — the rail and bar both cleared.
+   -------------------------------------------------------------------------- */
+.unified-header {
+  position: sticky;
+}
+
+/* CORRECTION: an earlier note here claimed --unified-banner-height was never
+   defined and had to be defaulted. It is defined — src/04-shell/misc.css, which
+   comes from the portal's own shell CSS, sets it to 0px. The declaration that
+   used to live here was redundant and has been removed.
+
+   It still matters that the shell layer is present: `.screen-container:has(.ds-layout)`
+   sizes itself with calc(100vh - var(--unified-header-height) - var(--unified-banner-height)),
+   and ONE undefined term invalidates the whole calc(). If you ever ship the
+   tokens without the shell layer, define it yourself. */

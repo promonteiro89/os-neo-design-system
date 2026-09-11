@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OutSystems UI widgets skinned with Neo tokens</title>
+
+<!-- 1. OutSystems UI. The 2.28.0 excerpt carries the per-channel
+        var(--background-color-x, var(--color-x)) override layer; the full
+        2.16.0 file below it is the real, complete stylesheet and only has the
+        base --color-* layer. Loading both proves the bridge drives either. -->
+<link rel="stylesheet" href="../reference/raw/osui-2.28-excerpt.css">
+
+<!-- 2. Neo tokens (+ dark theme) -->
+<link rel="stylesheet" href="../dist/neo-tokens.css">
+<link rel="stylesheet" href="../compat/neo-compat.css">
+
+<!-- 3. The bridge — last -->
+<link rel="stylesheet" href="../compat/neo-osui-bridge.css">
+
+<style>
+  /* Demo page chrome only. Deliberately uses no OutSystems UI or Neo class. */
+  .demo { max-width: 1000px; margin: 0 auto; padding: 32px; }
+  .demo h1 { margin: 0 0 4px; }
+  .demo > p  { color: var(--text-secondary); margin: 0 0 32px; }
+  .demo section { margin-bottom: 40px; }
+  .demo section > h2 { font-size: 20px; margin: 0 0 16px; }
+  .row { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .swatchbar { position: fixed; right: 24px; bottom: 24px; display: flex; gap: 8px;
+               background: var(--surface-2-default); border: 1px solid var(--border-subtle);
+               border-radius: 12px; box-shadow: var(--shadow-3); padding: 12px; z-index: 50; }
+  .swatchbar button { cursor: pointer; }
+  code { font-family: "Source Code Pro", monospace; font-size: 13px; }
+</style>
+</head>
+
+<body class="desktop">
+<div class="demo">
+
+  <h1 class="heading1">OutSystems UI, skinned by Neo</h1>
+  <p>
+    Every widget below is plain OutSystems UI markup with plain OutSystems UI
+    classes. No widget CSS was modified — only
+    <code>compat/neo-osui-bridge.css</code> is loaded on top, mapping Neo tokens
+    onto OutSystems UI's variables. Toggle the theme: the widgets follow,
+    because the bridge points at Neo tokens and Neo tokens flip.
+  </p>
+
+  <section>
+    <h2>Buttons <code>.btn</code></h2>
+    <div class="row">
+      <button class="btn btn-primary">Primary</button>
+      <button class="btn">Default</button>
+      <button class="btn btn-cancel">Cancel</button>
+      <button class="btn btn-success">Success</button>
+      <button class="btn btn-error">Destructive</button>
+      <button class="btn btn-small">Small</button>
+      <button class="btn" disabled>Disabled</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Cards <code>.card</code></h2>
+    <div class="grid">
+      <div class="card">
+        <div class="card-detail-title">Organization name</div>
+        <div class="card-detail-text">OutSystems Platform of Example Organization</div>
+      </div>
+      <div class="card">
+        <div class="card-detail-title">Domain</div>
+        <div class="card-detail-text">your-tenant.outsystems.dev</div>
+      </div>
+      <div class="card">
+        <div class="card-detail-title">Stages</div>
+        <div class="card-detail-text">4 stages, all online</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Section heading <code>.section-title</code></h2>
+    <div class="section-title">Details</div>
+    <div class="section-content">
+      Border and text colour both come from Neo tokens via the bridge.
+    </div>
+  </section>
+
+  <section>
+    <h2>Inputs <code>.form-control</code></h2>
+    <div class="row">
+      <span><label for="a">Name</label><br>
+        <input id="a" class="form-control" data-input value="Development"></span>
+      <span><label for="b">Disabled</label><br>
+        <input id="b" class="form-control" data-input value="Locked" disabled></span>
+      <span><label for="c">Invalid</label><br>
+        <input id="c" class="form-control not-valid" data-input value="bad value">
+        <br><span class="validation-message">This value is not valid.</span></span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Table <code>.table</code></h2>
+    <table class="table">
+      <thead class="table-header">
+        <tr><th>Order</th><th>Stage</th><th>Type</th><th>Runtime region</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr class="table-row"><td>1</td><td>Development</td><td>Development</td>
+          <td>Europe (Frankfurt)</td><td><span class="badge badge-small background-success">Online</span></td></tr>
+        <tr class="table-row"><td>2</td><td>Testing</td><td>Non-Production</td>
+          <td>Europe (Frankfurt)</td><td><span class="badge badge-small background-success">Online</span></td></tr>
+        <tr class="table-row table-row-selected"><td>3</td><td>Pre-Production</td><td>Non-Production</td>
+          <td>Europe (Frankfurt)</td><td><span class="badge badge-small background-success">Online</span></td></tr>
+        <tr class="table-row"><td>4</td><td>Production</td><td>Production</td>
+          <td>Europe (Frankfurt)</td><td><span class="badge badge-small background-error">Degraded</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Alerts <code>.alert</code></h2>
+    <div style="display:grid;gap:12px">
+      <div class="alert alert-info"><span class="alert-icon">i</span>
+        <span class="alert-message">Platform update 0.1.123 is available.</span></div>
+      <div class="alert alert-success"><span class="alert-icon">✓</span>
+        <span class="alert-message">All four stages are online.</span></div>
+      <div class="alert alert-warning"><span class="alert-icon">!</span>
+        <span class="alert-message">Warning keeps dark text in both themes — see the bridge's exception block.</span></div>
+      <div class="alert alert-error"><span class="alert-icon">×</span>
+        <span class="alert-message">Deployment to Production failed.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Tags, badges, avatars</h2>
+    <div class="row">
+      <span class="tag background-info">Info</span>
+      <span class="tag tag-small background-success">Online</span>
+      <span class="tag tag-small background-neutral-2">Neutral</span>
+      <span class="badge background-error">3</span>
+      <span class="badge badge-small background-info">12</span>
+      <span class="avatar border-radius-circle background-info">rm</span>
+      <span class="avatar avatar-medium border-radius-circle background-success">ab</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>List <code>.list-item</code></h2>
+    <div class="list">
+      <div class="list-item"><div class="card-detail-title">Users</div>
+        <div class="card-detail-text">Manage end users and groups</div></div>
+      <div class="list-item list-item-selected"><div class="list-item-content-title card-detail-title">API clients</div>
+        <div class="card-detail-text">Selected row uses the themed veil</div></div>
+      <div class="list-item"><div class="card-detail-title">Identity providers</div>
+        <div class="card-detail-text">SAML and OIDC configuration</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Separator &amp; link</h2>
+    <div class="separator separator-horizontal"></div>
+    <p><a href="#">A link uses <code>--text-color-primary</code> → Neo's <code>--link-text-default</code></a></p>
+  </section>
+
+</div>
+
+<div class="swatchbar">
+  <button class="btn btn-small btn-primary" id="theme">Toggle theme</button>
+  <button class="btn btn-small" id="unbridge">Bridge off</button>
+</div>
+
+<script>
+document.getElementById('theme').addEventListener('click', () => {
+  const r = document.documentElement;
+  r.dataset.theme = r.dataset.theme === 'dark' ? 'light' : 'dark';
+});
+
+// Disable the bridge to see raw OutSystems UI for comparison.
+const bridge = [...document.styleSheets].find(s => (s.href || '').includes('neo-osui-bridge'));
+document.getElementById('unbridge').addEventListener('click', (e) => {
+  bridge.disabled = !bridge.disabled;
+  e.target.textContent = bridge.disabled ? 'Bridge on' : 'Bridge off';
+});
+</script>
+</body>
+</html>

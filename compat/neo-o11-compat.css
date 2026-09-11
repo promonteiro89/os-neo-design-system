@@ -1,0 +1,160 @@
+/* ==========================================================================
+   OutSystems 11 adaptation layer
+   --------------------------------------------------------------------------
+   Hand-authored — NOT generated. `tools/build.py` never touches this file.
+
+   Paste this LAST in your O11 theme's stylesheet, after the Neo tokens (and
+   after dist/neo-shell.css if you are using the portal chrome).
+
+   Everything here exists because the Neo bundle was written against the ODC
+   portal's React DOM, and O11 renders a different one. Nothing here is a
+   redesign — it only re-points assumptions at O11 equivalents.
+   ========================================================================== */
+
+
+/* --------------------------------------------------------------------------
+   1. The three variables nothing defines
+   --------------------------------------------------------------------------
+   The bundle references 11 custom properties it never defines. In an O11 app
+   you only need to fix THREE of them, because OutSystems UI — your base theme
+   — already owns four, at exactly these values:
+
+       --space-s: 8px    --space-base: 16px    --space-m: 24px   (legacy Neo theme)
+       --border-size-s: 1px                                      (OutSystems UI)
+
+   and one more, --progress-rate, is always used with a fallback.
+   These three are the genuine gaps. See reference/audit.md §1.
+   -------------------------------------------------------------------------- */
+:root {
+  /* Neo's primitive is the bare word `noto sans` with no fallback. Give it a
+     real stack so every Neo `font:` shorthand degrades gracefully. */
+  --font-family: "Noto Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
+
+  --icon-default: var(--icon-primary);            /* .fusion-icon--color-icon-default */
+  --box-shadow-0: var(--shadow-0);                /* carousel arrow; transposed name */
+  --border-focus-default: var(--border-focus);    /* accordion focus ring */
+}
+
+
+/* --------------------------------------------------------------------------
+   2. Placeholder-dependent visibility
+   --------------------------------------------------------------------------
+   CORRECTED TWICE. Read this before writing a Block.
+
+   (1) An earlier version said the platform does not render a placeholder when
+       it is empty. It does. A Placeholder always renders a real div, empty or
+       not, so `:empty` correctly distinguishes filled from unfilled.
+
+   (2) A later version said the platform supplies the `ph` class. IT DOES NOT.
+       Measured 2026-09-03 in a live ODC app: the platform emits the div and
+       its id and NOTHING else —
+
+           <div id="b3-Title">…</div>          filled
+           <div id="b4-Subtitle"></div>        empty
+
+       Every class on the portal's placeholders is typed in by its developers:
+
+           <div class="ds-layout-header-breadcrumbs page-header-breadcrumbs ph"
+                id="b1-b1-Breadcrumbs">
+
+       `ph` included. It is a convention, not runtime output.
+
+   So the 15 `.neo-ph` rules in the bundle fire only if YOU set Style Class `ph` on
+   every Placeholder you author. Do that and the auto-hide behaviour is yours:
+
+   - 13 are `:has(> .neo-ph:empty) { display: none }` — the region collapses when
+     its placeholder is empty. Put the Placeholder inside the region Container
+     and this works with no If widget and no code. Forget `ph` and these fail
+     OPEN: the region never collapses and keeps its padding.
+
+   - 2 are the INVERSE, and they are the trap: the section header and footer
+     are hidden UNLESS they contain `div[slot] .neo-ph:not(:empty)`. Build that as
+         Container [Extended Property: slot="header"] > Placeholder [class ph]
+     which is exactly how the portal does it — 26 of its 58 placeholders sit
+     inside a `[slot]` container, because that is also how content is fed to
+     the Stencil components.
+
+     These fail CLOSED: miss either the `slot` wrapper or the `ph` class and
+     the header is hidden EVEN WHEN FILLED, with no error anywhere. That is
+     what happened to the Section block until NeoDesignSystem revision 14.
+
+   The two rules below neutralise the inverse pair. They stay on by default
+   because the failure mode is silent — miss the slot wrapper and your section
+   title just disappears. Delete them once you have built the slot structure
+   and you get the upstream show/hide behaviour back.
+   -------------------------------------------------------------------------- */
+.fusion-layout-section-structure__header,
+.fusion-layout-section-structure__footer {
+  display: flex;
+}
+
+
+/* --------------------------------------------------------------------------
+   3. Layout offsets for the portal chrome  (skip if you are not using it)
+   --------------------------------------------------------------------------
+   CORRECTION: `#reactContainer` DOES exist in O11 Reactive Web. OutSystems UI
+   itself styles it — `html, body, #reactContainer, #transitionContainer,
+   .screen-container { height: 100% }` — so Neo's own offset rule,
+       body:has(fusion-layout) #reactContainer { … }
+   fires in O11 exactly as it does in ODC. An earlier version of this file
+   claimed otherwise.
+
+   The `neo-host` class below is therefore optional. Use it when you want the
+   offset on a Container you own rather than on a platform-generated element —
+   which is still the safer choice, since `#reactContainer` is an undocumented
+   implementation detail. If you rely on Neo's rule instead, you still need the
+   `margin-top` and the two conditional rules, because Neo's version supplies
+   only `margin-left` and `height`.
+
+   The device classes below (.tablet / .phone) are added to <body> by the
+   OutSystems platform itself, which is why this needs no JavaScript: the
+   bundle and OutSystems UI both already target them (OutSystems UI alone has
+   219 `.tablet` and 249 `.phone` rules). Only .is-aside-expanded has to be
+   toggled by hand — see docs/outsystems-11.md.
+   -------------------------------------------------------------------------- */
+.neo-host {
+  height: calc(100% - var(--unified-header-height) - var(--unified-banner-height, 0px));
+  margin-top: var(--unified-header-height);
+  margin-left: var(--unified-aside-width-expanded);
+  transition: margin-left ease-out 0.3s;
+}
+
+/* Rail collapsed to the 72px icon strip. */
+body:not(.is-aside-expanded) .neo-host {
+  margin-left: var(--unified-aside-width, 72px);
+}
+
+/* Tablet and phone: the rail overlays the content, so no offset at all. */
+.tablet .neo-host,
+.phone .neo-host {
+  margin-left: 0;
+}
+
+
+/* --------------------------------------------------------------------------
+   4. Body margin
+   --------------------------------------------------------------------------
+   The Neo reset styles html and body but never zeroes the margin — in the
+   portal that comes from _Basic.css. OutSystems UI already zeroes it, so this
+   is only a safety net for a bare theme. Harmless either way.
+   -------------------------------------------------------------------------- */
+body {
+  margin: 0;
+}
+
+
+/* --------------------------------------------------------------------------
+   5. Known collision with OutSystems UI
+   --------------------------------------------------------------------------
+   Of 671 Neo variables and 221 OutSystems UI variables, exactly ONE name is
+   shared: --border-radius-circle. Both set it to 100%, so whichever wins is
+   irrelevant. No action needed — documented so you do not go looking.
+
+   Class-name collisions are a different matter and are NOT handled here: the
+   bundle deliberately restyles .btn, .card, .avatar, .metadata-container,
+   .skeleton-box and .ds-* when they appear inside Fusion containers. That is
+   upstream behaviour, and in O11 those are OutSystems UI's classes — so an
+   OutSystems UI button inside a fusion-layout header will pick up Neo's
+   tweaks. Usually what you want; override per component if not.
+   -------------------------------------------------------------------------- */

@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fusion-layout — page scaffold template</title>
+
+<!-- One file. dist/neo.css was retired when everything was folded into
+     neobase.css, which also carries the four properties the upstream bundle
+     references but never defines. Do not add neo-compat.css after it. -->
+<link rel="stylesheet" href="../dist/neobase.css">
+
+<style>
+  /* Demo chrome only — the variant switcher. Not part of the layout. */
+  .tpl-switch { position: fixed; right: var(--space-4); bottom: var(--space-4); z-index: 200;
+                display: flex; flex-wrap: wrap; gap: var(--space-2); max-width: 320px;
+                background: var(--surface-2-default); border: 1px solid var(--border-subtle);
+                border-radius: var(--border-radius-3); box-shadow: var(--shadow-3);
+                padding: var(--space-3); }
+  .tpl-switch button { cursor: pointer; }
+  .tpl-demo-card { background: var(--surface-1-default); border: 1px solid var(--border-subtle);
+                   border-radius: var(--border-radius-2); padding: var(--space-5); }
+</style>
+</head>
+
+<!--
+  ============================================================================
+  fusion-layout page scaffold
+  ----------------------------------------------------------------------------
+  Structure verified two ways: read out of the Neo CSS (child combinators and
+  :has() rules pin the nesting down exactly), and cross-checked against the
+  live ODC portal DOM at /configurations/organization — which still runs the
+  previous-generation `ds-layout`. This template is the Fusion equivalent.
+
+  THREE THINGS THAT WILL BITE YOU
+  ------------------------------------------------------------------------
+  1. `.ph` wrappers are OutSystems placeholders. Several regions auto-hide
+     when their placeholder is empty:
+        .fusion-layout__top-info:has(> .ph:empty)                  -> hidden
+        .fusion-layout-header__breadcrumbs:has(> .ph > .ph:empty)   -> hidden
+        .fusion-layout-header__description:has(> .ph > .ph:empty)   -> hidden
+        .fusion-layout-header__details:has(> .ph > .ph:empty)       -> hidden
+     Omit the `.ph` div and the region always shows (fine for hand-written
+     markup). Include it and you get the platform's auto-hide behaviour free.
+
+  2. The section header and footer are the INVERSE — hidden by default:
+        .fusion-layout-section-structure__header:not(:has(div[slot] .ph:not(:empty)))
+          -> display: none
+     They only appear if they contain `div[slot] > .ph` with content. That is
+     why both are wrapped in `<div slot=…><div class="ph">…</div></div>` below.
+     Drop the wrapper and your section title silently vanishes.
+
+  3. `--layout-content-max-width` is scoped to `.fusion-layout`, not `:root`.
+     Override it on the layout element, not globally.
+  ============================================================================
+-->
+
+<body>
+
+<!-- ========================================================================
+     ROOT. `fusion-layout` is an unregistered custom element ({display:contents}
+     in the CSS) — keep it for parity with the portal, or drop it and keep the
+     classes. Modifiers, all optional:
+       --type--narrow        content locked to 636px
+       --type--widescreen    max-width 2352px instead of 1384px
+       --scroll-type--page   the whole content column scrolls   <- most common
+       --scroll-type--section         only the section body scrolls
+       --scroll-type--section-column  section scrolls, header/footer pinned
+       --reserve-side-panel-space     keeps the panel's width when closed,
+                                      so content does not reflow on toggle
+     ===================================================================== -->
+<fusion-layout>
+<div class="fusion-layout fusion-layout--scroll-type--page" id="layout">
+
+  <div class="fusion-layout__main">
+    <div class="fusion-layout__content">
+
+      <!-- ---------------------------------------------------------------
+           HEADER. When a `.fusion-layout-header` is inside,
+           `.fusion-layout__header` becomes display:contents and the inner
+           header owns its own padding — that is the
+           `:has(.fusion-layout-header)` rule doing the work.
+           Add `--collapsed` to .fusion-layout-header for the sticky
+           condensed bar (drops breadcrumbs, description and details, and
+           shrinks the title to heading-3).
+           -------------------------------------------------------------- -->
+      <div class="fusion-layout__header">
+        <fusion-layout-header>
+        <div class="fusion-layout-header" id="header">
+          <div class="fusion-layout-header__inner">
+
+            <!-- breadcrumbs -->
+            <div class="fusion-layout-header__breadcrumbs">
+              <nav style="display:flex">
+                <fusion-breadcrumb-item>
+                  <span class="fusion-breadcrumb-item fusion-breadcrumb-item--default">
+                    <span class="fusion-breadcrumb-item__content"><a href="#">Management</a></span>
+                    <span class="fusion-breadcrumb-item__right">
+                      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.5"
+                              fill="none" stroke-linecap="round"/></svg>
+                    </span>
+                  </span>
+                </fusion-breadcrumb-item>
+                <fusion-breadcrumb-item>
+                  <span class="fusion-breadcrumb-item fusion-breadcrumb-item--default">
+                    <span class="fusion-breadcrumb-item__content">Organization</span>
+                  </span>
+                </fusion-breadcrumb-item>
+              </nav>
+            </div>
+
+            <!-- title row: left (title + support text) / right (actions) -->
+            <div class="fusion-layout-header__content">
+
+              <div class="fusion-layout-header__left-content">
+                <div class="fusion-layout-header__title">
+                  <fusion-page-title>
+                  <div class="fusion-page-title">
+                    <!-- __avatar / __icon / __badge are all optional -->
+                    <div class="fusion-page-title__avatar">
+                      <span class="fusion-avatar fusion-avatar--size-m fusion-avatar--format-rounded fusion-avatar--color-indigo">
+                        <span class="fusion-avatar__initials">mc</span>
+                      </span>
+                    </div>
+                    <div class="fusion-page-title__title"><span>Organization</span></div>
+                    <div class="fusion-page-title__badge">
+                      <span class="fusion-tag fusion-tag--label fusion-tag--ghost">
+                        <span class="fusion-tag__content">
+                          <span class="fusion-tag__label">Production</span></span>
+                      </span>
+                    </div>
+                  </div>
+                  </fusion-page-title>
+                </div>
+                <!-- truncates at 100px by design -->
+                <div class="fusion-layout-header__support-text">Europe (Frankfurt)</div>
+              </div>
+
+              <div class="fusion-layout-header__right-content">
+                <div class="fusion-layout-header__actions">
+                  <!-- NOTE: .btn lives in OutSystemsUITheme.css, NOT in this
+                       bundle. Styled here with tokens so the template is
+                       self-contained. Swap for your real button component. -->
+                  <button class="tpl-btn" style="height:var(--component-size-s);padding:0 var(--space-4);
+                      font:var(--actions-base);color:var(--button-text-default);cursor:pointer;
+                      background:var(--button-background-default);border:1px solid var(--button-border-default);
+                      border-radius:var(--border-radius-2);box-shadow:var(--shadow-0)">Reorder stages</button>
+                  <button class="tpl-btn" style="height:var(--component-size-s);padding:0 var(--space-4);
+                      font:var(--actions-base);color:var(--button-primary-text-default);cursor:pointer;
+                      background:var(--button-primary-background-default);
+                      border:1px solid var(--button-primary-border-default);
+                      border-radius:var(--border-radius-2)">Edit</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- description: clamped to 2 lines -->
+            <div class="fusion-layout-header__description">
+              Get an overview of your organization and its details.
+            </div>
+
+            <!-- details: metadata pairs. `.metadata-container` comes from the
+                 legacy Neo theme, but this bundle restyles it inside
+                 __details (resets border/background, sets label + title
+                 type), so it renders correctly with only Neo loaded. -->
+            <div class="fusion-layout-header__details">
+              <div class="metadata-container">
+                <div class="metadata-container-label">Platform region</div>
+                <div class="metadata-container-content">
+                  <div class="metadata-container-title"><span>Europe (Frankfurt)</span></div>
+                </div>
+              </div>
+              <div class="metadata-container">
+                <div class="metadata-container-label">Data platform region</div>
+                <div class="metadata-container-content">
+                  <div class="metadata-container-title"><span>Europe (Frankfurt)</span></div>
+                </div>
+              </div>
+              <div class="metadata-container">
+                <div class="metadata-container-label">Owner</div>
+                <div class="metadata-container-content">
+                  <span class="fusion-avatar fusion-avatar--size-xxs fusion-avatar--format-circle fusion-avatar--color-blue">
+                    <span class="fusion-avatar__initials">rm</span></span>
+                  <div class="metadata-container-title"><span>Platform team</span></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+        </fusion-layout-header>
+      </div>
+
+      <!-- ---------------------------------------------------------------
+           TOP INFO. Full-bleed slot above the content, for page-level
+           alerts. Auto-hides when its `.ph` is empty.
+           -------------------------------------------------------------- -->
+      <div class="fusion-layout__top-info">
+        <div class="fusion-alert" role="status" style="display:flex;gap:var(--space-3);
+            align-items:flex-start;padding:var(--space-4);
+            background:var(--alert-info-background);border:1px solid var(--alert-info-border);
+            border-radius:var(--border-radius-2)">
+          <span style="color:var(--alert-info-icon);flex-shrink:0">
+            <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+              <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 5a1.25 1.25 0 110 2.5A1.25 1.25 0 0112 7zm1 10.5h-2V11h2z"/>
+            </svg></span>
+          <div>
+            <div class="alert-title">Platform update available</div>
+            <div class="body-regular-base">Version 0.1.123 can be installed from Platform updates.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---------------------------------------------------------------
+           MAIN CONTENT. max-width 1384px (--type--widescreen: 2352px),
+           centred, gap of --space-7 between sections.
+           -------------------------------------------------------------- -->
+      <div class="fusion-layout__main-content">
+
+        <fusion-layout-section-structure>
+        <div class="fusion-layout-section-structure">
+
+          <!-- HIDDEN unless it contains div[slot] > .ph with content.
+               Add --sticky to pin it while the section scrolls. -->
+          <div class="fusion-layout-section-structure__header">
+            <div slot="header">
+              <div class="ph" style="display:flex;flex:1;gap:var(--space-6)">
+                <div class="fusion-layout-section-structure__header-content">
+                  <div class="fusion-layout-section-structure__title">Details</div>
+                  <div class="fusion-layout-section-structure__subtitle">
+                    Organization name, domain and stages
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="fusion-layout-section-structure__content">
+            <div style="display:grid;gap:var(--space-5)">
+              <div class="tpl-demo-card">
+                <div class="body-semi-bold-l margin-bottom-3">Organization name</div>
+                <div class="body-regular-base text-secondary">
+                  OutSystems Platform of Example Organization</div>
+              </div>
+              <div class="tpl-demo-card">
+                <div class="body-semi-bold-l margin-bottom-3">Domain</div>
+                <div class="body-regular-base text-secondary">your-tenant.outsystems.dev</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Same visibility rule as the header. --sticky pins to the bottom. -->
+          <div class="fusion-layout-section-structure__footer">
+            <div slot="footer">
+              <div class="ph body-regular-s text-secondary">4 stages, all online</div>
+            </div>
+          </div>
+
+        </div>
+        </fusion-layout-section-structure>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ---------------------------------------------------------------------
+       SIDE PANEL. Sibling of __main, sticky, collapses by animating width.
+       Modifiers: --open (400px, or 320px with --size-small),
+       --type-floating (collapses to a 32px rail instead of 0),
+       --style-ghost (transparent, no left border).
+       -------------------------------------------------------------------- -->
+  <div class="fusion-layout__side-panel">
+    <fusion-side-panel>
+    <div class="fusion-side-panel fusion-side-panel--open" id="panel">
+      <div class="fusion-side-panel__viewport">
+        <button class="fusion-side-panel__toggle-button" id="panel-toggle"
+                aria-label="Toggle panel"
+                style="height:var(--component-size-s);width:var(--component-size-s);
+                       display:flex;align-items:center;justify-content:center;cursor:pointer;
+                       background:var(--button-ghost-background-default);border:0;
+                       border-radius:var(--border-radius-2);color:var(--icon-primary)">
+          <ds-icon>
+            <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" fill="none"
+                    stroke-linecap="round"/></svg>
+          </ds-icon>
+        </button>
+        <div class="fusion-side-panel__shell">
+          <div class="fusion-side-panel__header">
+            <div class="fusion-side-panel__title">Activity</div>
+            <div class="fusion-side-panel__subtitle">Last 24 hours</div>
+          </div>
+          <div class="fusion-side-panel__content">
+            <div class="body-regular-base" style="display:grid;gap:var(--space-4)">
+              <div>Stage <strong>Production</strong> came online.</div>
+              <div>Stage <strong>Pre-Production</strong> came online.</div>
+              <div>Subscription renewed.</div>
+            </div>
+          </div>
+          <div class="fusion-side-panel__footer">
+            <button class="tpl-btn" style="height:var(--component-size-s);padding:0 var(--space-4);
+                font:var(--actions-base);color:var(--button-text-default);cursor:pointer;
+                background:var(--button-background-default);
+                border:1px solid var(--button-border-default);
+                border-radius:var(--border-radius-2)">View audit trail</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    </fusion-side-panel>
+  </div>
+
+</div>
+</fusion-layout>
+
+<!-- Variant switcher — demo scaffolding, delete when copying. -->
+<div class="tpl-switch">
+  <button class="fusion-tag fusion-tag--choice" data-act="theme">
+    <span class="fusion-tag__content"><span class="fusion-tag__label">Theme</span></span></button>
+  <button class="fusion-tag fusion-tag--choice" data-act="panel">
+    <span class="fusion-tag__content"><span class="fusion-tag__label">Side panel</span></span></button>
+  <button class="fusion-tag fusion-tag--choice" data-act="narrow">
+    <span class="fusion-tag__content"><span class="fusion-tag__label">Narrow</span></span></button>
+  <button class="fusion-tag fusion-tag--choice" data-act="wide">
+    <span class="fusion-tag__content"><span class="fusion-tag__label">Widescreen</span></span></button>
+  <button class="fusion-tag fusion-tag--choice" data-act="collapse">
+    <span class="fusion-tag__content"><span class="fusion-tag__label">Collapse header</span></span></button>
+  <button class="fusion-tag fusion-tag--choice" data-act="reserve">
+    <span class="fusion-tag__content"><span class="fusion-tag__label">Reserve panel space</span></span></button>
+</div>
+
+<script>
+const layout = document.getElementById('layout');
+const panel  = document.getElementById('panel');
+const header = document.getElementById('header');
+
+const toggle = (el, cls, btn) => {
+  const on = el.classList.toggle(cls);
+  if (btn) btn.classList.toggle('fusion-tag--selected', on);
+};
+
+document.querySelectorAll('.tpl-switch [data-act]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    switch (btn.dataset.act) {
+      case 'theme':
+        document.documentElement.dataset.theme =
+          document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+        break;
+      case 'panel':    toggle(panel,  'fusion-side-panel--open', btn); break;
+      case 'narrow':   toggle(layout, 'fusion-layout--type--narrow', btn); break;
+      case 'wide':     toggle(layout, 'fusion-layout--type--widescreen', btn); break;
+      case 'collapse': toggle(header, 'fusion-layout-header--collapsed', btn); break;
+      case 'reserve':  toggle(layout, 'fusion-layout--reserve-side-panel-space', btn); break;
+    }
+  });
+});
+// The side panel starts open, so reflect that in the switcher.
+document.querySelector('[data-act=panel]').classList.add('fusion-tag--selected');
+document.getElementById('panel-toggle').addEventListener('click', () =>
+  toggle(panel, 'fusion-side-panel--open',
+         document.querySelector('[data-act=panel]')));
+</script>
+</body>
+</html>

@@ -1,0 +1,699 @@
+/* Dark Theme Overrides for Login */
+/* ===================================================================== */
+/*  MTSI Dark Theme CSS Variables                                             */
+/* ===================================================================== */
+.mtsi-dark-theme {
+    /* Dark Theme Color Palette */
+    --dark-bg-primary: #181A1F;
+    --dark-text-primary: #FFFFFF;
+    --dark-text-secondary: #F9FAFB;
+    --dark-text-muted: #9CA3AF;
+    --dark-border: #4A4E57;
+    --dark-accent: #5252F2;
+    --dark-accent-hover: #5E60F9;
+    --dark-error: #EF4444;
+    --dark-disabled-bg: #CCCCCC;
+    --dark-disabled-text: #666666;
+    
+    /* Spacing Variables */
+    --spacing-xs: 8px;
+    --spacing-sm: 12px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    
+    /* Border Radius */
+    --border-radius: 8px;
+}
+
+/* Dark Theme Color Overrides - Text Colors */
+.mtsi-dark-theme .text-neutral-0 { color: var(--color-neutral-11); }
+.mtsi-dark-theme .text-neutral-1 { color: var(--color-neutral-10); }
+.mtsi-dark-theme .text-neutral-2 { color: var(--color-neutral-9); }
+.mtsi-dark-theme .text-neutral-3 { color: var(--color-neutral-8); }
+.mtsi-dark-theme .text-neutral-4 { color: var(--color-neutral-7); }
+.mtsi-dark-theme .text-neutral-5 { color: var(--color-neutral-6); }
+.mtsi-dark-theme .text-neutral-6 { color: var(--color-neutral-5); }
+.mtsi-dark-theme .text-neutral-7 { color: var(--color-neutral-4); }
+.mtsi-dark-theme .text-neutral-8 { color: var(--color-neutral-3); }
+.mtsi-dark-theme .text-neutral-9 { color: var(--color-neutral-2); }
+.mtsi-dark-theme .text-neutral-10 { color: var(--color-neutral-1); }
+.mtsi-dark-theme .text-neutral-11 { color: var(--color-neutral-0); }
+
+/* Dark Theme Color Overrides - Background Colors */
+.mtsi-dark-theme .background-neutral-0 { background-color: #181A1F; }
+.mtsi-dark-theme .background-neutral-1 { background-color: var(--color-neutral-10); }
+.mtsi-dark-theme .background-neutral-2 { background-color: var(--color-neutral-9); }
+.mtsi-dark-theme .background-neutral-3 { background-color: var(--color-neutral-8); }
+.mtsi-dark-theme .background-neutral-4 { background-color: var(--color-neutral-7); }
+.mtsi-dark-theme .background-neutral-5 { background-color: var(--color-neutral-6); }
+.mtsi-dark-theme .background-neutral-6 { background-color: var(--color-neutral-5); }
+.mtsi-dark-theme .background-neutral-7 { background-color: var(--color-neutral-4); }
+.mtsi-dark-theme .background-neutral-8 { background-color: var(--color-neutral-3); }
+.mtsi-dark-theme .background-neutral-9 { background-color: var(--color-neutral-2); }
+.mtsi-dark-theme .background-neutral-10 { background-color: var(--color-neutral-1); }
+.mtsi-dark-theme .background-neutral-11 { background-color: var(--color-neutral-0); }
+
+/* Dark Theme Main Background Override */
+.mtsi-dark-theme {
+    background-color: #181A1F !important;
+    color: var(--color-neutral-1) !important;
+}
+
+.mtsi-dark-theme .main-menu__container__second-nav{
+    display:none;
+}
+
+/* ===================================================================== */
+/*  MTSI Dark Theme Base Layout                                               */
+/* ===================================================================== */
+.mtsi-dark-theme,
+.mtsi-dark-theme body,
+.mtsi-dark-theme html{
+    background-color: var(--dark-bg-primary) !important;
+    color: var(--dark-text-primary) !important;
+}
+
+/* Hidden class for theme-managed elements */
+.hidden {
+    display: none !important;
+}
+
+/* Specific override for dark theme logo when hidden */
+#dark-theme-logo.hidden {
+    display: none !important;
+}
+
+/* Dark theme logo positioning */
+#dark-theme-logo {
+    margin-bottom: 32px !important;
+    width: 100% !important;
+    display: flex !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    text-align: left !important;
+}
+
+#dark-theme-logo img {
+    height: 25px !important;
+    width: auto !important;
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.mtsi-dark-theme .screen-container,
+.mtsi-dark-theme .layout,
+.mtsi-dark-theme .content,
+.mtsi-dark-theme .main-content,
+.mtsi-dark-theme .pds-login,
+.mtsi-dark-theme .pds-login-right,
+.mtsi-dark-theme .pds-login-right-form {
+     background-color: transparent !important;
+     color: var(--dark-text-primary) !important;
+}
+
+.mtsi-dark-theme .pds-login-right {
+    padding-top: 95px !important;
+}
+
+.mtsi-dark-theme .full-screen-background {
+    display: block;
+    position: relative;
+}
+/* 
+.mtsi-dark-theme .full-screen-background {
+  position: fixed; 
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  background-image: url('/img/background-size-m.svg');
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+  display: block;
+} */
+
+.mtsi-dark-theme #root{
+  position: relative; /* Not strictly necessary, but good practice for z-index */
+  z-index: 1; /* Puts it above the background */
+  padding: 0 200px;
+  display: flex;
+  justify-content: center;
+}
+
+/* ===================================================================== */
+/*  MTSI Dark Theme Header                                                    */
+/* ===================================================================== */
+.mtsi-dark-theme .main-menu__container__second-nav,
+.mtsi-dark-theme header.main-menu__container.header-black,
+.mtsi-dark-theme header.main-menu__container,
+.mtsi-dark-theme header,
+.mtsi-dark-theme header.header-black .main-menu__container__background,
+.mtsi-dark-theme .main-menu__container__background,
+.mtsi-dark-theme .main-menu__container__background-mobile {
+    background-color: var(--dark-bg-primary) !important;
+    border: none !important;
+    box-shadow: none !important;
+    position: relative !important;
+    width: auto;
+
+}
+
+.mtsi-dark-theme header.header-black,
+.mtsi-dark-theme header.header-black * {
+    color: var(--dark-text-primary) !important;
+}
+
+.mtsi-dark-theme header.header-black .main-menu__container__logo img {
+    content: url('/img/outsystems-dark.svg');
+    height: 25px !important;
+    width: auto !important;
+}
+
+/* ===================================================================== */
+/*  MTSI Dark Theme Form Layout                                               */
+/* ===================================================================== */
+.mtsi-dark-theme .pds-login-right-form {
+    max-width: 432px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+}
+
+.mtsi-dark-theme .main-menu__container__background {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.mtsi-dark-theme .pds-login-right-account {
+    color: var(--dark-text-primary) !important;
+    font-family: "noto-sans", sans-serif;
+    font-size: 24px !important;
+    text-align: left;
+}
+
+/* ===================================================================== */
+/*  MTSI Dark Theme Form Elements                                             */
+/* ===================================================================== */
+/* Input Fields */
+.mtsi-dark-theme .form-control {
+    background-color: var(--dark-bg-primary) !important;
+    border: 1px solid var(--dark-border) !important;
+    color: #F9FAFB !important;
+    border-radius: var(--border-radius) !important;
+}
+
+/* Override browser default styling for required/invalid states */
+.mtsi-dark-theme .form-control:required {
+    background-color: var(--dark-bg-primary) !important;
+}
+
+.mtsi-dark-theme .form-control:invalid {
+    color: #F9FAFB !important;
+    text-align: left !important;
+    background-color: var(--dark-bg-primary) !important;
+}
+
+.mtsi-dark-theme .form-control:valid {
+    background-color: var(--dark-bg-primary) !important;
+}
+
+/* Override browser autofill styling */
+.mtsi-dark-theme .form-control:-webkit-autofill,
+.mtsi-dark-theme .form-control:-webkit-autofill:hover,
+.mtsi-dark-theme .form-control:-webkit-autofill:focus,
+.mtsi-dark-theme .form-control:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px var(--dark-bg-primary) inset !important;
+    -webkit-text-fill-color: #F9FAFB !important;
+    background-color: var(--dark-bg-primary) !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+.mtsi-dark-theme .form-control:focus {
+    border: 2px solid #B2B4FF !important;
+    box-shadow: 0 0 0 2px rgba(178, 180, 255, 0.1) !important;
+    outline: none !important;
+}
+
+.mtsi-dark-theme .form-control::placeholder {
+    color: var(--dark-text-muted) !important;
+}
+
+.mtsi-dark-theme .form-control.not-valid {
+    border: 1px solid #EF4E38 !important;
+}
+
+.mtsi-dark-theme .form-control.not-valid:hover {
+    border: 1px solid #F9978A !important;
+}
+
+.mtsi-dark-theme .form-control.not-valid:focus {
+    border: 2px solid #B2B4FF !important;
+    box-shadow: 0 0 0 2px rgba(178, 180, 255, 0.1) !important;
+}
+
+/* Error message text color */
+.mtsi-dark-theme .validation-message {
+    color: #F56451 !important;
+}
+
+/* Labels */
+.mtsi-dark-theme label[data-label] {
+    color: var(--dark-text-primary) !important;
+}
+
+/* Buttons */
+.mtsi-dark-theme .btn.btn-primary {
+    border-radius: var(--border-radius) !important;
+    border: 1px solid var(--dark-accent) !important;
+    background: var(--dark-accent) !important;
+    box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.08), 0 1px 1px 0 rgba(0, 0, 0, 0.12) !important;
+    color: var(--dark-text-primary) !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    text-decoration: none;
+}
+
+.mtsi-dark-theme .btn.btn-primary:hover {
+    background: var(--dark-accent-hover) !important;
+    border: 1px solid var(--dark-accent-hover) !important; 
+    filter: brightness(1) !important;
+    -webkit-filter: brightness(1) !important;
+}
+
+.mtsi-dark-theme .btn.btn-primary:disabled {
+    background: var(--dark-disabled-bg) !important;
+    border: 1px solid var(--dark-disabled-bg) !important;
+    color: var(--dark-disabled-text) !important;
+}
+
+/* ===================================================================== */
+/*  MTSI Dark Theme Interactive Elements                                      */
+/* ===================================================================== */
+/* Checkbox - complete override with proper checkmark */
+.mtsi-dark-theme input[type="checkbox"].checkbox {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    width: 20px !important;
+    height: 20px !important;
+    border-radius: 4px !important;
+    border: 1px solid var(--Control-Border-Default, #777F8D) !important;
+    background: var(--Surface-Control-Default, #000) !important;
+    position: relative !important;
+}
+
+.mtsi-dark-theme .checkbox:before,
+.mtsi-dark-theme .checkbox:after {
+    display: none !important;
+}
+
+.mtsi-dark-theme .pds-login-right-signedin input[type="checkbox"].checkbox:checked {
+    background: #5e60f9 !important;
+    border-color: #777AFD !important;
+}
+
+.mtsi-dark-theme .checkbox:checked:after {
+    content: '' !important;
+    display: block !important;
+    position: absolute !important;
+    left: 6px !important;
+    top: 3px !important;
+    width: 6px !important;
+    height: 12px !important;
+    border: solid white !important;
+    border-width: 0 2px 2px 0 !important;
+    transform: rotate(45deg) !important;
+}
+
+.mtsi-dark-theme .pds-login-right-forgot-signedin .checkbox {
+    margin-right: 0;
+}
+
+.mtsi-dark-theme .pds-login-right-signedin label {
+    color: #F9FAFB !important;
+    font-size: var(--spacing-sm) !important;
+    cursor: pointer !important;
+    user-select: none !important;
+}
+
+/* Links */
+.mtsi-dark-theme .link-small {
+    color: var(--Link-Text-Default, #B2B4FF) !important;
+    text-decoration: none !important;
+    
+    /* Body/Regular/S */
+    font-family: "noto-sans", sans-serif !important;
+    font-size: 12px !important;
+    font-style: normal !important;
+    font-weight: 400 !important;
+    line-height: 16px !important;
+}
+
+.mtsi-dark-theme .link-small:hover {
+    text-decoration: underline !important;
+    color: #F9FAFB !important;
+}
+
+/* ===================================================================== */
+/*  MTSI Dark Theme Component Spacing                                         */
+/* ===================================================================== */
+.mtsi-dark-theme .pds-login-right-inputs {
+    margin-bottom: var(--spacing-md) !important;
+}
+
+.mtsi-dark-theme .pds-login-right-forgot-signedin {
+    margin-top: 0 !important;
+    margin-bottom: var(--spacing-lg) !important;
+}
+
+.mtsi-dark-theme .pds-login-right-signedin {
+    margin-top: var(--spacing-md) !important;
+}
+
+.mtsi-dark-theme .pds-login-right-button {
+    margin-top: var(--spacing-sm) !important;
+}
+
+.mtsi-dark-theme .pds-login-right-signup-account {
+    margin-top: 0 !important;
+    color: #F9FAFB !important;
+    font-size: var(--spacing-sm) !important;
+    text-align: left !important;
+}
+
+/* ===================================================================== */
+/*  MTSI Dark Theme Status and Account Elements                               */
+/* ===================================================================== */
+.mtsi-dark-theme .pds-login-right-account {
+    color: var(--dark-text-primary) !important;
+    font-family: "noto-sans", sans-serif;
+    font-size: 24px !important;
+    text-align: left;
+    line-height: var(--font-size-h1);
+    padding-top: var(--space-xxl);
+}
+
+.mtsi-dark-theme .pds-login-right-statuscode {
+    margin-bottom: 50px !important;
+    height: 120px !important;
+    display: block !important;
+    font-size: inherit !important;
+    margin: 0 0!important;
+    text-align: center !important;
+}
+
+/* Error page paragraph text styling */
+.mtsi-dark-theme .pds-login-right-inputs p {
+    color: var(--dark-text-secondary) !important;
+    font-family: "noto-sans", sans-serif !important;
+    font-size: 16px !important;
+    font-style: normal !important;
+    font-weight: 400 !important;
+    line-height: 24px !important;
+    margin:0;
+}
+
+/* Error page list items styling (Error Id, Trace Id, etc.) */
+.mtsi-dark-theme .pds-login-right-inputs li {
+    color: var(--dark-text-secondary) !important;
+    font-family: "noto-sans", sans-serif !important;
+    font-size: 16px !important;
+    font-style: normal !important;
+    font-weight: 400 !important;
+    line-height: 24px !important;
+}
+
+/* ===================================================================== */
+/*  MTSI Dark Theme Utility Overrides                                    */
+/* ===================================================================== */
+.mtsi-dark-theme .pds-login-password-eye {
+    width:16px;
+    right:8px;
+    top:0;
+    pointer-events: auto;
+    margin: 0;
+    color: #fff;
+    opacity: 0.5;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.mtsi-dark-theme .pds-login-password-eye:hover{
+    opacity: 1;
+    transform: opacity 0.2s;
+}
+
+.mtsi-dark-theme .pds-login-right-forgot-signedin {
+    display: flex !important;
+    justify-content: flex-start !important;
+    align-items: flex-start !important;
+    flex-direction: column-reverse !important;
+    gap: var(--spacing-xs) !important;
+}
+
+.mtsi-dark-theme .pds-login-right-signedin {
+    display: flex !important;
+    align-items: center !important;
+    gap: var(--spacing-xs) !important;
+    width: 100% !important;
+}
+
+.mtsi-dark-theme .active-screen{
+    position: fixed;
+    width: calc(100% - 400px);
+    margin: 0 auto;
+}
+.mtsi-dark-theme header.main-menu__container.header-black{
+    width: calc(100% - 400px);
+    margin-top: 50px;
+}
+
+/*
+RECTANGLES BG THEME
+*/
+.mtsi-dark-theme .full-screen-background {
+    display: block;
+    position: relative;
+}
+
+.mtsi-dark-theme .rectangles {
+    display: block;
+}
+.mtsi-dark-theme .rectangles img{
+    max-width: 100%;
+}
+
+.mtsi-dark-theme .rectangles.rectangle-top-left{
+    position: fixed;
+    height:132px;
+    left:0;
+    top:0;
+    width:163px;
+}
+
+.mtsi-dark-theme .rectangles.rectangle-top-right{
+    position: absolute;
+    height:270px;
+    right:0;
+    top:0;
+    width:262px;
+}
+
+.mtsi-dark-theme .rectangles.rectangle-bottom-left{
+   position: fixed;
+   height:505px;
+   left:0;
+   bottom:0;
+   width:293px;
+}
+
+.mtsi-dark-theme .rectangles.rectangle-bottom-right{
+    position: fixed;
+    height:163px;
+    right:0;
+    bottom:0;
+    width:468px;
+}
+
+/* ===================================================================== */
+/*  MTSI Dark Theme Notification Panel Overrides                         */
+/* ===================================================================== */
+
+/* Overlay notification panel for header (fixed, does not affect layout) */
+.mtsi-notification-overlay {
+    overflow: hidden !important;
+    position: fixed !important;
+    /* top removed to allow inline style to control top */
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    /* width and max-width removed to allow inline style to control width */
+    z-index: 2000 !important;
+    display: flex !important;
+    align-items: center !important;
+    box-shadow: 0 4px 24px 0 rgba(16, 24, 40, 0.18) !important;
+    border-radius: 8px !important;
+    padding: 0 32px !important;
+    background: #4D0900 !important;
+    border: 1px solid #BB2410 !important;
+    color: #fff !important;
+    margin: 0 !important;
+    pointer-events: auto !important;
+}
+
+.mtsi-notification-overlay .feedback-message-close {
+    margin-left: 24px !important;
+    padding: 0 !important;
+}
+
+.mtsi-notification-overlay .feedback-message-close {
+    background: transparent !important;
+    border-radius: 0 !important;
+    transition: none;
+}
+.mtsi-notification-overlay .feedback-message-close:hover {
+    background: transparent !important;
+}
+
+.mtsi-notification-overlay .feedback-message-text {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    margin-left:0;
+    padding-left:0;
+}
+
+.mtsi-notification-overlay .feedback-message-text > div:first-child {
+    font-weight: 600 !important;
+    font-size: 14px !important;
+    text-align: left !important;
+    line-height: 20px !important;
+    margin-top: 7px !important;
+    margin-bottom: 0px !important;
+}
+
+.mtsi-notification-overlay .feedback-message-text > div:last-child {
+    font-weight: 400 !important;
+    font-size: 14px !important;
+    text-align: left !important;
+    line-height: 20px !important;
+}
+
+/* Notification panel styles for dark theme */
+.mtsi-dark-theme .feedback-message {
+    background: #4D0900 !important;
+    color: #fff !important;
+    display: block !important;
+    align-items: center !important;
+    padding: 0.75em 1em !important;
+    margin-bottom: 1em !important;
+    width: 100% !important;
+    font-size: 1em !important;
+    box-shadow: none !important;
+    border: 1px solid #BB2410 !important;
+    padding-top:15px !important;
+    border-radius: 10px !important;
+}
+
+.mtsi-dark-theme .feedback-message-icon {
+    margin-right: 0.75em !important;
+    display: flex !important;
+    align-items: center !important;
+    float:left;
+    
+}
+.mtsi-dark-theme #dark-theme-logo .feedback-message-icon {
+        margin: 10px 0 0 0 !important;
+}
+
+.mtsi-dark-theme #dark-theme-logo .feedback-message-icon svg {
+    height: 50px !important;
+    color: #f56451;
+}
+
+.mtsi-dark-theme .feedback-message-text {
+    float: left;
+    width: calc(100% - 100px);
+    line-height: 1.4 !important;
+}
+
+.mtsi-dark-theme .feedback-message-close {
+    margin-left: auto !important;
+    background: none !important;
+    border: none !important;
+    color: #949ca8 !important;
+    font-size: 1.2em !important;
+    cursor: pointer !important;
+    opacity: 0.8 !important;
+    padding: 0 0.25em !important;
+    line-height: 1 !important;
+    transition: opacity color 0.2s !important;
+    position: absolute;
+    top:23px;
+    right:0
+}
+
+.mtsi-dark-theme .feedback-message-close:hover {
+    opacity: 1 !important;
+    color: #fff !important;
+}
+
+.mtsi-dark-theme .feedback-message-close svg{
+    pointer-events: none;
+    height: 50px;
+}
+
+.mtsi-dark-theme .feedback-message-error {
+  background: #e53935;
+}
+
+.mtsi-dark-theme .feedback-message-visible {
+  display: flex;
+}
+
+@media (max-width:991.98px) {
+    .mtsi-dark-theme .pds-login-right {
+        padding-top:80px;
+     } 
+}
+@media (max-width:910px) {
+    .mtsi-dark-theme header.main-menu__container.header-black{
+        width:auto;
+        margin-top:0;
+    }
+    .mtsi-dark-theme #root{
+        padding:0 200px;
+    }
+}
+
+@media (max-width:860px) {
+   .mtsi-dark-theme .active-screen{
+        width:calc(100% - 250px)
+   }
+   .mtsi-dark-theme .rectangles.rectangle-top-right,
+   .mtsi-dark-theme .rectangles.rectangle-bottom-right{
+        display:none;
+   }
+} 
+
+@media (max-width:767px) {
+   .mtsi-dark-theme .active-screen{
+        width:calc(100% - 50px)
+   }
+   .mtsi-dark-theme .rectangles.rectangle-top-left,
+   .mtsi-dark-theme .rectangles.rectangle-bottom-left{
+        display:none;
+   }
+} 

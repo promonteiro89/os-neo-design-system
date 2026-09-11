@@ -1,0 +1,116 @@
+# Every stylesheet the ODC portal loads, captured from document.styleSheets on
+# /usersaccess/  (the Users page) on 2026-09-07.
+#
+# CAPTURE FROM THE PAGE YOU ARE MIRRORING. This list used to come from
+# /configurations/organization, which loads a different app theme
+# (configurations.Configuration_Th). Our harness replicates the Users page, so
+# that entry was reference for the wrong screen and usersaccess.Users_Th was
+# missing entirely. Recaptured here from /usersaccess/; the two
+# configuration-theme entries are gone because that page does not load them.
+#
+# A page reached by in-app SPA navigation does NOT load the full set. Open the
+# URL directly (or in a same-origin iframe) so every sheet is present.
+#
+# Format: local-name|url  ->  fetch.sh writes reference/raw/<local-name>.css
+# All are served without authentication. URLs carry content hashes, so they
+# change on every ODC release — recapture with, in the browser console:
+#   [...document.styleSheets].map(s => s.href).filter(Boolean).join('\n')
+#
+# WHAT IS ACTUALLY MINED, as opposed to kept for reference:
+#   neo-design-system.original   tools/build.py splits this into src/**
+#   unified-shell                tools/build.py splits this into src/04-shell/
+#   old-neo-design-system        THREE extractors take whitelisted subsets:
+#                                extract_legacy_layout.py  (.ds-layout, .main)
+#                                extract_legacy_widgets.py (ds-avatar, table)
+#                                osui_reskin.py            (the OSUI overrides)
+#                                Anything outside those whitelists is NOT in
+#                                the bundle even though the file is captured.
+#                                That is how `html.is-soft-responsive` and
+#                                `--min-supported-width` were missed until
+#                                2026-09-07 — see section 15 of
+#                                compat/neo-odc-compat.css.
+#   outsystems-ui-theme          read by audit_osui_theme.py / collisions.py
+#   everything else              reference only, never emitted
+#
+# CURRENCY: refreshed 2026-09-07 (later the same day). reference/raw now MATCHES
+# the live portal exactly — neo-design-system is 185,359 bytes / 1,529 rules /
+# 1,132 classes, which is what the previous staleness note predicted.
+#
+# What the refresh changed, end to end: +19 rules in dist/neobase.css
+# (2,107 -> 2,126), confined to TWO component families and nothing else.
+#
+#   fusion-slider / fusion-range-slider   the `__track .noUi-*` descendant form
+#                                         was replaced by modifier classes
+#                                         (--tooltip-top/bottom/left/right,
+#                                         --vertical, --markers-visible), plus
+#                                         new vertical and tooltip-position
+#                                         variants. 28 selectors restated.
+#   fusion-wizard / fusion-wizard-step    selectors widened to also match
+#                                         div[data-block*=WizardStep], plus new
+#                                         --horizontal and --collapsed variants.
+#
+# No shell, header, aside or token change — unified-shell.css came back byte
+# identical. The harness uses neither slider nor wizard, so this refresh is
+# invisible to it; it matters only for apps that do.
+#
+# Two classes the old note predicted, fusion-layout-header__additional-content
+# and fusion-layout__global-navigation, ARE in the refreshed source but are
+# deliberately NOT in the bundle: they belong to layout.css, which sits in
+# neobase.py's DROP_COMPONENTS because zero fusion-layout* elements render on
+# any portal page measured.
+#
+# RUN THE WHOLE PIPELINE, NOT build.py ALONE. tools/build.py clears dist/ and
+# the src/05-*, src/06-* trees, so running it by itself silently drops the OSUI
+# reskin layer and the two legacy extracts — 770 selectors (.btn, .avatar,
+# .badge, .alert, .breadcrumbs) vanish and neobase.css falls from 2,126 rules to
+# 1,329 while still reporting CLEAN. Use ./tools/build_all.sh, which runs the
+# five steps in dependency order.
+
+# ---- mined into the bundle ------------------------------------------------
+neo-design-system.original|/usersaccess/css/NeoDesignSystem.NeoDesignSystem__tMPYVklUlHJKQxXfouw.css?tMPYVk+_lUlHJ_KQxXfouw
+old-neo-design-system|/usersaccess/css/NeoDesignSystem.Old_NeoDesignSystem__spG05jHP1sbMvxZooIaCA.css?spG05jHP+1sbMvxZooIaCA
+unified-shell|/UnifiedExperienceMenuServices/resources/0.1.122/prod.unified.css
+
+# ---- audited against, not emitted -----------------------------------------
+outsystems-ui-theme|/usersaccess/css/NeoDesignSystem.OutSystemsUITheme__awj3ofBKExF9LNZbNw9PTw.css?awj3ofBKExF9LNZbNw9PTw
+
+# ---- reference only -------------------------------------------------------
+# The theme's own extra CSS: 77 rules, all legacy ThemeGrid_Width1-12 grid
+# boilerplate. Nothing portal-specific.
+outsystems-ui-theme-extra|/usersaccess/css/NeoDesignSystem.OutSystemsUITheme.extra__vkiZ2qxMfivSMtKUFPSxqg.css?vkiZ2qxMfivSMtKUFPSxqg
+legacy-neo-theme|/usersaccess/css/NeoDesignSystem.Legacy_NeoTheme__ImO79ziRzeOIct0wee3ULg.css?ImO79ziRzeOIct0wee3ULg
+neo-illustration|/usersaccess/css/NeoDesignSystem.NeoDesignSystem.Illustration__rPQwuP7OHd3Sbvf3FlpwRA.css?rPQwuP7OHd3Sbvf3FlpwRA
+unified-change-password|/usersaccess/css/UnifiedExperienceCommonLib.UnifiedExpTools.UnifiedExperienceChangePassword__3K1x4UB5FX6s4tcLYfjiA.css?3K1x4+UB5FX6s4tcLYfjiA
+# The Users APP's own theme — 212 rules, and deliberately not mined. Checked
+# 2026-09-07: 214 of its 224 selectors are absent from our bundle, but they are
+# feature CSS for that app's screens (idp-cards-list, app-group-invite-card,
+# table-redirect-urls, groups-stages-create-btn, identity-providers-tags), not
+# design-system material. Even its generic-sounding classes (.search-dropdown,
+# .tags-list, .bullet-list) are that app's own widget tweaks. Kept so the next
+# person can re-check rather than rediscover this.
+#
+# ONE EXCEPTION, added 2026-09-07. "never emitted" is no longer strictly true:
+#
+#     [data-dropdown].dropdown .dropdown-list
+#         { min-width: 104px; max-width: 400px; width: auto !important }
+#
+# is copied out of this file into compat/neo-odc-compat.css section 17. It is
+# the only rule here whose selector is entirely generic OutSystems UI, and it
+# is what gives every portal dropdown its size — without it a dropdown stretches
+# to its trigger's width (measured: portal 162x144 content-sized, ours 296x112).
+#
+# The exception was re-tested rather than assumed: of the 211 rules in this
+# file, 151 have no app-name marker in their selector AND are absent from our
+# bundle, but reading them shows they are app utilities — .display-none-resend,
+# .max-width-3-tags, .min-height-7, .user-groups-table-colunms. The dropdown
+# rule is the only design-system-shaped one. Do not take this exception as a
+# reason to mine the rest.
+users-theme|/usersaccess/css/usersaccess.Users_Th__S9CRRzJmWZATryOwzBKD6g.css?S9CRRzJmWZATryOwzBKD6g
+# 36 bytes: .users-skeleton-width{width:120px}
+user-avatar|/usersaccess/css/Users_SharedLogic_Lib.UserAvatar.UserAvatar__zUqTvdck9I2F5wTMVNYfQ.css?zUqT+vdck9I2F5wTMVNYfQ
+# Platform utilities (.os-flex, .os-grid). Every ODC app loads its own copy, so
+# there is nothing to replicate — captured only so the list matches the page.
+os-runtime-view|/usersaccess/css/os-runtime-view-js__ePbRGiTCVqAWAFQEzCGlw.css?ePbRGiTCVqAW+AFQEzCGlw
+react-widgets|/usersaccess/css/OutSystemsReactWidgets__bx2NbUzbsaSlPeDZyQglxw.css?bx2NbUzbsaSlPeDZyQglxw
+basic|/usersaccess/css/_Basic__sOXzBX75ovPIx368jloYLw.css?sOXzBX75ovPIx368jloYLw
+font-awesome|/usersaccess/css/font-awesome.min__8Y9g6zLAhrEK7JgSeFMg.css?8Y9g6zLAhr_EK7JgSeFM_g

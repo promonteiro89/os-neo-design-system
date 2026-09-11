@@ -1,0 +1,415 @@
+.OSFillParent {
+    display: block;
+    width: 100%;
+}
+
+table.OSFillParent {
+    display: table;
+}
+
+input.OSFillParent,
+button.OSFillParent,
+select.OSFillParent,
+textarea.OSFillParent {
+    display: inline-block;
+    box-sizing: border-box;
+}
+
+.OSInline {
+    display: inline-block;
+    vertical-align: top;
+}
+
+table.OSInline {
+    display: inline-table;
+}
+
+.OSAutoMarginTop {
+    margin-top: 10px;
+}
+
+div[class*="ThemeGrid_Width"] {
+    vertical-align: top;
+}
+
+[class*="ThemeGrid_Width"] {
+    display: inline-block;
+    box-sizing: border-box;
+}
+
+.ThemeGrid_Container {
+    box-sizing: border-box;
+}
+
+.OSBlockWidget {
+    display: inline;
+}
+
+.btn:focus {
+    box-shadow: 0px 0px 0px 2px var(--color-selection-3);
+}
+
+.checkbox:focus:before {
+    box-shadow: 0px 0px 0px 2px var(--color-selection-3);
+}
+
+.radio-button:focus:before {
+    box-shadow: 0px 0px 0px 2px var(--color-selection-3);
+}
+
+.switch:focus:before {
+    box-shadow: 0px 0px 0px 2px var(--color-selection-3);
+}
+
+/* Hybrid Login Theme*/
+
+.hybrid-theme .pds-login-right-account {
+    color: var(--color-neutral-11);
+    font-family: "Cabin", sans-serif;
+    font-size: var(--font-size-h4);
+    text-align: left;
+}
+
+.hybrid-theme .pds-login-input {
+    position: relative;
+    display: block;
+}
+
+.hybrid-theme .pds-login-password-eye {
+    position: absolute;
+    right: 0;
+    width:35px;
+    cursor: pointer;
+    display: block;
+    top: 50%;
+    margin: 0;
+    border:none;
+    background: transparent;
+    filter: brightness(1) !important;
+    -webkit-filter: brightness(1) !important;
+    opacity: 0.6;
+    transform: translateY(-50%);
+    transition: opacity 0.2s;
+}
+.hybrid-theme .pds-login-password-eye:hover {
+    filter: brightness(0.5) !important;
+    -webkit-filter: brightness(0.5) !important;
+    opacity: 1;
+
+}
+.hybrid-theme .pds-login-password-eye img {
+    display: block;
+    max-width: 80%;
+}
+
+/* End of Hybrid Login Theme */
+
+/* https://product-design.outsystemscloud.com/ProductDesignSystem/css/ProductDesignSystem.Patterns.LoginScreen.css?XaT5VBGYLNZdROOIpKseQw */
+@media all and (max-width: 600px) {
+    /* Extra small devices (phones, 600px and down) */
+    .pds-login {
+        display: flex;
+        flex-direction: row;
+        overflow: hidden;
+        background-color: var(--color-neutral-0);
+        justify-content: center;
+    }
+
+    /* Community Styles */
+    .portal .pds-login {
+        align-items: center;
+        justify-content: center;
+    }
+
+    .pds-login-left {
+        display: none;
+    }
+
+    .pds-login-left-title {
+        display: none;
+    }
+
+    .pds-login-left-sub-title {
+        display: none;
+    }
+
+    .pds-login-right {
+        width: 100%;
+        background-color: var(--color-neutral-0);
+        padding-top: 130px;
+        padding-bottom: calc(var(--space-xl) + var(--space-base));
+        display: flex;
+        justify-content: center;
+        padding-left: var(--space-xl);
+        padding-right: var(--space-xl);
+        animation-fill-mode: forwards;
+    }
+}
+
+@media all and (min-width: 600px) and (max-width: 768px) {
+    /* Small devices (portrait tablets and large phones, 600px and up) */
+    .pds-login {
+        display: flex;
+        flex-direction: row;
+        overflow: hidden;
+        background-color: var(--color-neutral-0);
+        justify-content: center;
+    }
+
+    /* Community Styles */
+    .portal .pds-login {
+        align-items: center;
+        justify-content: center;
+    }
+
+    .pds-login-left {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+    }
+
+    .pds-login-left-title {
+        display: none;
+    }
+
+    .pds-login-left-sub-title {
+        display: none;
+    }
+
+    .pds-login-right {
+        width: 100%;
+        background-color: var(--color-neutral-0);
+        padding-top: 130px;
+        padding-bottom: calc(var(--space-xl) + var(--space-base));
+        display: flex;
+        justify-content: center;
+        padding-left: var(--space-xl);
+        padding-right: var(--space-xl);
+        animation-fill-mode: forwards;
+    }
+}
+
+@media only screen and (min-width: 768px) {
+    /* Medium devices (landscape tablets, 768px and up) */
+    .pds-login {
+        display: flex;
+        flex-direction: row;
+        overflow: hidden;
+        background-color: var(--color-neutral-0);
+    }
+
+    /* Community Styles */
+    .portal .pds-login {
+        align-items: center;
+        justify-content: center;
+    }
+
+    .pds-login-left {
+        width: 60%;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding-left: var(--space-xl);
+        padding-right: var(--space-xl);
+        padding-top: calc(var(--space-xl) + var(--space-xl));
+        padding-bottom: calc(var(--space-xl) + var(--space-xl));
+    }
+
+    .pds-login-left-title {
+        position: relative;
+        z-index: 1;
+    }
+
+    .pds-login-left-sub-title {
+        width: 60%;
+        margin-top: var(--space-base);
+        position: relative;
+        z-index: 1;
+    }
+
+    .pds-login-right {
+        width: 100%;
+        background-color: var(--color-neutral-0);
+        padding-top: 130px;
+        padding-bottom: calc(var(--space-xl) + var(--space-base));
+        display: flex;
+        justify-content: center;
+        padding-left: var(--space-xl);
+        padding-right: var(--space-xl);
+    }
+}
+
+.background-img {
+    background-color: #cccccc;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    flex-grow: 1;
+}
+
+.background-img-toolname {
+    background-image: url("/img/default_dark_bg.jpg");
+    justify-content: start;
+}
+
+.background-img-lifetime {
+    background-image: url("/img/lifetime_bg.png");
+}
+
+.background-img-servicecenter {
+    background-image: url("/img/servicecenter_bg.png");
+}
+
+.pds-login-left-illustration {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.pds-login-left-illustration img {
+    object-fit: cover;
+    height: 100%;
+    width: 100%;
+}
+
+.pds-login-right-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 400px;
+    justify-content: space-between;
+    flex-grow: 1;
+}
+
+.pds-login-right-logo {
+    margin-bottom: calc(var(--space-xl) + var(--space-l));
+    width: 100%;
+}
+
+.pds-login-right-logo img {
+    display: block;
+    text-align: center;
+    margin: 0 auto;
+}
+
+.pds-login-right-environment {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.pds-login-right-environment .name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 400px;
+}
+
+.pds-login-right-environment .change {
+    white-space: nowrap;
+    margin-left: var(--space-base);
+}
+
+.pds-login-right-account {
+    margin-bottom: var(--space-m);
+    width: 100%;
+    text-align: center;
+}
+
+.pds-login-right-statuscode {
+    display: inline-block;
+    font-size: 18em;
+    margin: -0.5em 0;
+    vertical-align: bottom;
+    color: whitesmoke;
+}
+
+.pds-login-right-inputs {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    margin-bottom: var(--space-base);
+}
+
+.pds-login-right-forgot-signedin {
+    align-items: center;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    margin-bottom: var(--space-m);
+}
+
+.pds-login-right-forgot-signedin .checkbox {
+    margin-right: var(--space-s);
+}
+
+.hybrid-theme .pds-login-right-signedin label,
+.pds-login-right-signedin label {
+    margin-bottom: 0;
+}
+
+.pds-login-right-signedin {
+    align-items: center;
+    display: flex;
+}
+
+.pds-login-right-button {
+    margin-bottom: var(--space-base);
+}
+
+.pds-login-right-button,
+.pds-login-right-button > div,
+.pds-login-right-button > div > div {
+    width: 100%;
+}
+
+.pds-login-right-signup-account {
+    text-align: center;
+    width: 100%;
+}
+
+.pds-login-right-additional-account {
+    text-align: center;
+}
+
+.pds-login-input {
+    position: relative;
+}
+
+.pds-login-password-eye {
+    position: absolute;
+    right: 0;
+    margin: 8px;
+    cursor: pointer;
+}
+
+@keyframes pdsLoginLeft {
+    0% {
+        opacity: 0;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+@keyframes pdsLoginRight {
+    0% {
+        opacity: 0;
+        transform: translateY(40px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0px);
+    }
+}
+
+.full-screen-background {
+    display:none;
+}
+

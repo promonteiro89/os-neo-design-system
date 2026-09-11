@@ -1,0 +1,1281 @@
+/* ==========================================================================
+   ODC adaptation layer
+   --------------------------------------------------------------------------
+   Hand-authored — NOT generated. `tools/build.py` never touches this file.
+
+   This is the SHORT one, and that is the point: the bundle was written for
+   ODC, so in an ODC app almost nothing needs adapting. Compare
+   compat/neo-o11-compat.css, which exists entirely to undo ODC assumptions.
+
+   What you do NOT need in ODC, and why:
+
+   - `.neo-ph` placeholder rules      the platform emits `.neo-ph`, so all 15 rules
+                                  work as upstream intended. Measured on the
+                                  portal: 58 placeholders, 37 of them empty.
+   - `#reactContainer` offsets    same runtime, same element.
+   - `body { margin: 0 }`         comes from the platform's _Basic.css.
+   - `--space-s/-base/-m`,        owned by OutSystems UI and the legacy Neo
+     `--border-size-s`            theme, both present in an ODC app.
+   - the OutSystems UI bridge     see the note at the bottom of this file.
+
+   What is left is the three genuine upstream bugs and one missing fallback.
+   ========================================================================== */
+
+
+/* --------------------------------------------------------------------------
+   1. The three variables nothing defines
+   --------------------------------------------------------------------------
+   These are broken in the ODC portal too — a var() with no definition and no
+   fallback makes the browser drop the whole declaration, so the default icon
+   colour, the carousel arrow shadow and one focus ring quietly do nothing.
+   See reference/audit.md §1.
+   -------------------------------------------------------------------------- */
+:root {
+  --icon-default: var(--icon-primary);            /* .fusion-icon--color-icon-default */
+  --box-shadow-0: var(--shadow-0);                /* carousel arrow; transposed name */
+  --border-focus-default: var(--border-focus);    /* accordion focus ring */
+}
+
+
+/* --------------------------------------------------------------------------
+   2. A real font stack
+   --------------------------------------------------------------------------
+   Neo's primitive is the bare word `noto sans` with no fallback, and the real
+   stack lives in 01-base/reset.css — which you should not paste into an
+   existing app, because it also takes over scrolling. This is that one line.
+   -------------------------------------------------------------------------- */
+:root {
+  --font-family: "Noto Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
+}
+
+
+/* --------------------------------------------------------------------------
+   3. The OutSystems UI bridge does NOT work on ODC — measured
+   --------------------------------------------------------------------------
+   compat/neo-osui-bridge.css re-skins OutSystems UI widgets by remapping its
+   variables. It needs the per-channel override layer
+       var(--background-color-x, var(--color-x))
+   which OutSystems UI 2.28.0 (O11) has.
+
+   MEASURED 2026-09-03 in a real ODC app (NeoThemeCheck, on the dev environment,
+   consuming this theme): ODC's bundled OutSystems UI has the BASE layer only.
+
+       --color-primary              = #1068eb
+       --background-color-primary   = (empty)
+       --background-color-* declared in any :root, across all 8 stylesheets = 0
+
+   So on ODC the bridge has nothing to hook into. Do not add it: Neo's tokens
+   style your own CSS and Neo markup, but OutSystems UI widgets keep their own
+   look. Confirmed by measurement — an OSUI Primary button stayed #1068eb and
+   an OSUI input stayed white in BOTH themes, while Neo-token elements on the
+   same screen inverted correctly.
+
+   To restyle OSUI widgets on ODC you have to override its classes directly,
+   which is exactly what the portal does (~290 classes by hand in
+   Old_NeoDesignSystem — see reference/portal-module.md). That is a much bigger
+   commitment than the O11 bridge and is not shipped here.
+
+
+/ * --------------------------------------------------------------------------
+   4. The page surface
+   --------------------------------------------------------------------------
+   Neo themes `--page-background` correctly (#f9fafb light, #181a1f dark) but
+   nothing applied it, so the page stayed OutSystems UI's #f3f6f8 in BOTH
+   themes while Neo surfaces went dark. Measured in a live ODC app.
+
+   OutSystems UI paints the body with its own rule:
+
+       body { background-color: var(--background-color-body,
+                                    var(--color-background-body)) }
+
+   so there are two ways in, and this file uses both:
+
+   1. Map OSUI's own variable, so its rule themes itself with no override and
+      no specificity fight. On ODC the per-channel half is absent, so the
+      `--color-background-body` fallback is the one that resolves.
+   2. Set `body` directly, which also carries the text colour.
+
+   The text colour is not optional. OSUI's body text is `--color-neutral-9`
+   (#272b30) in both themes; on a #181a1f page that is unreadable, so the
+   background and the foreground have to move together.
+   -------------------------------------------------------------------------- */
+:root {
+  /* OutSystems UI reads this in its own body rule. */
+  --color-background-body: var(--page-background);
+}
+
+body {
+  background-color: var(--page-background);
+  color: var(--text-primary);
+
+  /* MEASURED 2026-09-03. `--font-family` was defined on :root but never
+     APPLIED, so every element without an explicit font rule fell back to the
+     browser's default stack. The portal's own
+     `.unified-aside-menu-header-title` carries no font declaration at all — it
+     inherits 14px/24px Noto Sans. Ours inherited 14px/21px system, which is
+     why that one label was off while every neighbouring element (whose class
+     does set a font) looked right. Set the base so inheritance works. */
+  font: var(--body-regular-base);
+}
+
+
+/* --------------------------------------------------------------------------
+   5. Dark-mode switching: TrueShade works out of the box
+   --------------------------------------------------------------------------
+   VERIFIED 2026-09-03 against TrueShade 1.5.1 in a live ODC app: TrueShade
+   sets `data-theme` on <html>, which is exactly the hook Neo's dark block
+   uses. No adapter, no glue, no JavaScript of your own.
+
+       html lang="en-US" dir="ltr" data-theme="light"
+       localStorage["$OS_<Module>$layout-theme"] = "system-default"
+
+   Wire it as:
+       Screen OnReady            -> TrueShade.Initialize(ApplicationName: "")
+       toggle                    -> TrueShade.SetLayoutColorScheme("dark"|"light")
+       follow the OS             -> TrueShade.SetLayoutColorScheme("system-default")
+       read current              -> TrueShade.GetLayoutColorScheme()
+       read raw preference       -> TrueShade.GetStoredLayoutColorScheme()
+
+   `Initialize` also seeds the preference, applies the theme to <html> and
+   registers listeners for OS-level and cross-tab changes, so "follow the
+   system" and multi-tab sync come for free — things Neo's CSS has no opinion
+   about (it has no prefers-color-scheme rules at all).
+
+   Pass an explicit ApplicationName to share one preference across several
+   front-ends; omit it and the key is derived as $OS_<ModuleName>$layout-theme.
+   -------------------------------------------------------------------------- */
+
+
+/* --------------------------------------------------------------------------
+   7. `ph` is a RESERVED class in ODC — the placeholder marker is `neo-ph`
+   --------------------------------------------------------------------------
+   MEASURED 2026-09-03, after shipping the bug and watching all body text
+   disappear.
+
+   Neo's auto-hide rules key on a marker class the developer sets on every
+   Placeholder widget. On the portal that class is `ph`:
+
+       <div class="ds-layout-header-breadcrumbs page-header-breadcrumbs ph"
+            id="b1-b1-Breadcrumbs">
+
+   Copying that verbatim into a normal ODC app destroys every string on the
+   page. A stock ODC app loads Phosphor's icon stylesheet (1532 rules), which
+   claims the same class as ITS base class:
+
+       .ph { font-family: Phosphor }          (plus font-variant: discretionary-ligatures)
+
+   Text under a `ph` element is then rendered by an icon font whose lowercase
+   codepoints are ligature triggers, so only capitals survive. Measured on a
+   30px heading: lowercase "abcdef" was 0px wide with `ph`, 90px without.
+
+   The portal escapes this because it does NOT load Phosphor at all — verified
+   on the ODC portal: zero rules in the whole cascade claim `.ph`. The
+   convention is portal-safe, not ODC-safe.
+
+   So the marker here is `neo-ph`, and the 16 upstream selectors are rewritten
+   to match. This is a FORCED deviation from the portal's CSS: keeping the
+   literal class name would mean shipping a guaranteed collision with a
+   platform stylesheet we do not control. Behaviour is identical; only the
+   token changes.
+
+   Do not "restore fidelity" by renaming this back.
+   -------------------------------------------------------------------------- */
+
+
+/* --------------------------------------------------------------------------
+   8. Table cell padding — measured against the portal, not inferred
+   --------------------------------------------------------------------------
+   MEASURED 2026-09-03 on the portal's /usersaccess/ page against our harness,
+   both at 1440x900 with specimens built from the portal's own markup:
+
+                       portal        ours (before)
+       .table-header th   0 24px        0 20px
+       .table-row td      4px 24px      8px 24px
+
+   Two different causes:
+
+   * `.table-header th` — our reskin carries `padding: 0 var(--space-5)` (20px),
+     faithfully reproducing the rule in old-neo-design-system.css. The portal
+     nonetheless renders 24px, so a later layer overrides it there. See
+     reference/portal-dom/reskin-verification.md — which layer wins is NOT yet
+     resolved, so this pins the measured value rather than swapping the source.
+
+   * `.table-row td` — our reskin has NO base rule for it at all, only
+     responsive and bulk-selection variants, so it falls through to OutSystems
+     UI's own default of 8px 24px.
+
+   Token scales are byte-identical between the portal and our app (verified
+   --space-0..9 and --size-0..12), so these are rule differences, not token ones.
+   -------------------------------------------------------------------------- */
+.table-header th {
+  padding: 0 var(--space-6);
+}
+
+.table-row td {
+  padding: var(--space-1) var(--space-6);
+}
+
+
+/* --------------------------------------------------------------------------
+   9. Empty placeholders collapse — the portal's universal rule
+   --------------------------------------------------------------------------
+   MEASURED 2026-09-03. Our page-header block was 105px against the portal's 73.
+   The extra 32px came from three empty regions whose margins still took space:
+
+       .page-header-breadcrumbs   margin-bottom  8px
+       .page-header-description   margin-top     8px
+       .page-header-metadata      margin-top    16px
+
+   FIRST EXPLANATION, WRONG: that the portal omits these elements when unused.
+   It does not — all three are present in its DOM. They compute `display: none`,
+   which is why their margins never apply.
+
+   The mechanism is a single universal rule:
+
+       .ph:empty { display: none }
+
+   It lives in NeoDesignSystem.OutSystemsUITheme and collapses EVERY empty
+   placeholder in the system, which is why the portal never needs per-region
+   handling. The component-level `:has(> .ph:empty)` rules we already carry are
+   elaborations on top of it, not the base mechanism.
+
+   We were missing it because tools/osui_reskin.py reads old-neo-design-system.css,
+   whose only `.ph:empty` rule is narrowly scoped to `.ds-canvas-control .controls`.
+   The universal one is in reference/raw/outsystems-ui-theme.css, which nothing
+   currently reads — see reference/portal-dom/reskin-verification.md, where that
+   file being unused was flagged as an open question. This is the first confirmed
+   rule we lose by it, so the audit is worth finishing.
+
+   Measured after: page-header block 73px, inner grid 40px, details 0,
+   breadcrumbs 0x0 with display:none — matching the portal on every one. 38 of
+   52 placeholders collapse; title, actions, nav items and content unaffected.
+   -------------------------------------------------------------------------- */
+.neo-ph:empty {
+  display: none;
+}
+
+
+/* --------------------------------------------------------------------------
+   10. Icon sprite host
+   --------------------------------------------------------------------------
+   Icons are an SVG sprite: one hidden <svg> carrying <symbol> definitions, and
+   each icon is <svg class="pds-icon"><use href="#ic-name"></use></svg>.
+
+   On the portal the sprite lives in `div.unified-icons`, a body child injected
+   by the platform host OUTSIDE #reactContainer — the same arrangement as the
+   header and nav rail. A standalone app has no such host, so the IconSprite
+   block supplies it and this rule keeps it out of layout.
+
+   `display: none` is deliberately NOT used: in several browsers a <use> cannot
+   reference symbols inside a display:none subtree. Zero-sizing with overflow
+   hidden is the safe idiom.
+
+   The sizing contract itself (.pds-icon / .icon-small / .icon-large against
+   --icon-size-*) already ships in the icons layer; only the host was missing.
+   -------------------------------------------------------------------------- */
+.unified-icons,
+.neo-icon-sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+
+/* --------------------------------------------------------------------------
+   11. Icon injection host
+   --------------------------------------------------------------------------
+   ODC's Expression widget always escapes its value. There is no Escape Content
+   property: `IExpression` exposes Value, Example, Width, MarginTop, MarginLeft,
+   Style, ExtendedProperties and Events, and nothing else; ODC Studio renders no
+   such row; and an `EscapeContent` metadata entry stores but is inert at
+   runtime, hidden or not. All three were measured, not assumed.
+
+   So no OutSystems widget can emit <svg> or <use>. The Icon block instead
+   renders an empty Container and writes the markup into it from an OnReady
+   client action. That Container is pure plumbing and must not exist as far as
+   layout is concerned — on the portal an icon is a bare <svg> inline in flow,
+   with no wrapper.
+
+   `display: contents` removes the box while keeping the children, which is
+   exactly the semantics needed. Baseline across all current browsers; the
+   accessibility bugs that once dogged it applied to elements carrying semantics,
+   and this one carries none.
+   -------------------------------------------------------------------------- */
+.neo-icon-host {
+  display: contents;
+}
+
+
+/* --------------------------------------------------------------------------
+   12. Table layout and row height on ODC
+   --------------------------------------------------------------------------
+   OutSystems UI's own `.table` rule sets `table-layout: auto` and is served
+   after this file, so the deployed page computed `auto` while carrying
+   `.table-layout-fixed`. With `auto` the header's percentage widths are ignored
+   and columns become content-driven. Qualifying with `.table` wins on
+   specificity rather than on order, which we do not control.
+
+   Row heights: portal 64px, ours measured 57px, with identical `4px 24px` cell
+   padding and 24px line-height. The difference is the row minimum the portal's
+   large-row variant sets. Stated on the cell so it holds for one line, two, or
+   an avatar.
+   -------------------------------------------------------------------------- */
+.table.table-layout-fixed { table-layout: fixed; }
+.table-row-large > td { height: 64px; }
+.table-header-large > th { height: 64px; }
+
+
+/* --------------------------------------------------------------------------
+   13. The body scroll gutter
+   --------------------------------------------------------------------------
+   `body { scrollbar-gutter: stable }` already ships — it is extracted verbatim
+   from the portal's unified-shell.css and it does apply here. But a gutter is
+   only reserved on an element that is actually a scroll container, and ours
+   computed `overflow: visible`, so the declaration did nothing.
+
+   The portal's body computes `overflow: hidden scroll`. That `overflow-y` comes
+   from prod.unified.css, served by UnifiedExperienceMenuServices as host chrome
+   outside #reactContainer — none of the twelve stylesheets we capture, so the
+   extraction never saw it.
+
+   Consequence, measured at 1440x900 with every ancestor class identical on both
+   pages: the portal reserves 8px inside body, so `.main` is 1432 against our
+   1440, and that 8px flows down through .theme-grid-container to the table and
+   every column — 1120 vs 1112, columns 280/182 vs 278/180.
+   -------------------------------------------------------------------------- */
+body { overflow-y: scroll; }
+
+
+/* --------------------------------------------------------------------------
+   14. Expression widgets defeat every `nowrap` container on ODC
+   --------------------------------------------------------------------------
+   MEASURED 2026-09-07 in real mobile Safari (iPhone 17, 402pt) and confirmed
+   in the DOM: 72 containers across six class families ask for
+   `white-space: nowrap` and render wrapped text anyway.
+
+   The cause is OutSystems' own runtime, not the extracted CSS:
+
+       OutSystemsReactWidgets.css
+       [data-expression] { white-space: pre-wrap }
+
+   Every Expression widget renders `<span data-expression>`, and that span's
+   own declaration beats the nowrap its parent sets — white-space applies to
+   the element that declares it, so the parent's rule never reaches the text.
+
+   The portal never hits this because its markup puts raw text directly in the
+   container. Ours cannot: text on ODC comes from an Expression, which is
+   always a span.
+
+   Note the portal's own CSS already solves the same shape where IT has a span
+   child — `.breadcrumbs-item .title span`, `.fusion-page-title__title span`,
+   `.dropdown-empty-button-label span` all restate nowrap for the inner span.
+   This block does exactly that for the containers we render Expressions into,
+   rather than blanket-overriding `[data-expression]`, which would also strip
+   pre-wrap from free-text fields that legitimately want it.
+
+   Affected counts on the users screen at the time of measurement:
+     line-clamp line-clamp-1 x40 · fusion-badge__label x10
+     fusion-avatar initials x10 · unified-header-button-label x1
+     unified-header-portfolio-trigger-description x1
+   Visible symptom: the portfolio name wrapped to two lines and collided with
+   the header avatar at phone width, where the portal keeps it on one line.
+   -------------------------------------------------------------------------- */
+.unified-header-portfolio-trigger-description [data-expression],
+.unified-header-button-label [data-expression],
+.unified-aside-item-label [data-expression],
+.unified-aside-menu-header-title [data-expression],
+.fusion-badge__label [data-expression],
+.fusion-avatar__initials [data-expression],
+.line-clamp [data-expression] {
+  /* `unset` rather than `inherit` to match the portal's own two rules for the
+     same problem, which are already in the bundle:
+         .tag [data-expression], .skeleton-content>[data-expression]
+             { white-space: unset }
+     white-space is an inherited property, so the two are equivalent here —
+     this is about staying idiomatic with the upstream CSS. */
+  white-space: unset;
+}
+
+
+/* --------------------------------------------------------------------------
+   15. Soft responsive: the portal never reflows below 1040px
+   --------------------------------------------------------------------------
+   MEASURED 2026-09-07 by loading BOTH the portal and this app in a 386px
+   same-origin iframe — a real 386px layout viewport with full script access,
+   which neither the browser pane (clamps at ~1040) nor the iOS Simulator
+   (screenshots only) could give.
+
+   At 386px the two behave completely differently:
+
+                          PORTAL        OURS (before this rule)
+       body min-width     1040px        0px
+       body width         1040          386
+       .table             968           322
+       columns            242/157 x4/97 80/52 x4/32
+
+   The portal does not make its layout work at phone width — it declines to
+   reflow at all below a floor and lets the page scroll horizontally. Ours
+   squeezed every column until the text collided, which is why the users table
+   was unreadable on a phone while the portal's stayed intact.
+
+   The mechanism is two rules plus a token, from
+   `NeoDesignSystem.Old_NeoDesignSystem`. That stylesheet IS captured in
+   tools/stylesheets.txt and IS mined — by extract_legacy_layout.py,
+   extract_legacy_widgets.py and osui_reskin.py, each taking a whitelisted
+   subset. These particular rules simply fall outside every whitelist: none of
+   the three looks for `html.is-soft-responsive` or `--min-supported-width`.
+   The gap is in what we select from that file, not in whether we have it:
+
+       :root { --min-supported-width: 1040px }
+       html.is-soft-responsive       { min-width: var(--min-supported-width) }
+       html.is-soft-responsive body  { min-width: var(--min-supported-width) }
+
+   The class sits on <html> and is present at every width — measured from 386
+   to 1200 — so it is not viewport-conditional. Above 1040 the min-width is
+   simply inert, which is why it is safe to apply it unconditionally.
+   InitShell adds the class; these rules give it meaning.
+
+   Caveat worth keeping: on the live portal the class is present on a full page
+   load and absent after an in-app SPA navigation to the same URL. We apply it
+   on every load, which is the more consistent of the portal's two behaviours.
+
+   CORRECTION 2026-09-07: this section originally shipped only the min-width
+   half of the portal's rule. The portal's actual declaration is
+
+       html.is-soft-responsive { overflow-x: scroll; min-width: ... }
+
+   and `overflow-x: scroll` is the half that makes the page USABLE below the
+   floor. Without it the min-width still widens the document — html measured
+   scrollWidth 1040 against clientWidth 386 at a 390px viewport, exactly like
+   the portal — but `html` inherited `overflow-x: hidden`, so there was no
+   scrollbar, no wheel and no touch pan. Content past 386px was unreachable.
+   Setting scrollLeft from script still worked, which is why the geometry
+   looked correct while the page was in fact frozen.
+
+   Measured at 390px through a same-origin iframe:
+
+       portal   html overflow-x: scroll    body overflow-x: hidden
+       ours     html overflow-x: hidden    body overflow-x: auto
+
+   Everything else already matched: both had is-soft-responsive on <html>,
+   min-width 1040px on html and body, and html clientWidth 386 / scrollWidth
+   1040. One declaration was the whole difference.
+   -------------------------------------------------------------------------- */
+:root {
+  --min-supported-width: 1040px;
+}
+
+html.is-soft-responsive {
+  min-width: var(--min-supported-width);
+  overflow-x: scroll;
+}
+
+html.is-soft-responsive body {
+  min-width: var(--min-supported-width);
+}
+
+/* --------------------------------------------------------------------------
+   16. Expression placeholders must not stretch inside .avatar
+   --------------------------------------------------------------------------
+   `.avatar` is `display: inline-flex; align-items: center; justify-content:
+   center`, and the portal puts the initials in it as a bare TEXT NODE:
+
+       <span class="avatar avatar-amber">RM</span>
+
+   An ODC Expression cannot render a bare text node — it renders
+   `<span data-expression>MC</span>`, and that span computes `display: block`,
+   so it stretches to the full 40px and the flex centring has nothing left to
+   centre. The glyphs then sit at the span's text-align (start), i.e. hard left
+   in the circle.
+
+   Measured 2026-09-07 in the account overlay, text bounding box vs the 40x40
+   avatar:
+       portal   22x19, gaps L9 / R9        (centred)
+       ours     40x19, gaps L0 / R0        (full-width, initials left)
+   With this rule ours is 22x19, gaps L9 / R9 — identical.
+
+   `display: contents` rather than `inline`: it removes the span's box entirely
+   so the text becomes the flex container's own content, which is exactly the
+   portal's shape. Same technique as the icon and header unwrapping in
+   compat/neo-phosphor-bridge.css.
+   -------------------------------------------------------------------------- */
+.avatar > [data-expression] {
+  display: contents;
+}
+
+/* --------------------------------------------------------------------------
+   17. Dropdown list sizing
+   --------------------------------------------------------------------------
+   NOT from the design system, and that is the point. This single declaration
+   lives in `users-theme.css` — the Users APP's own theme, which
+   tools/stylesheets.txt records as "reference only, never emitted" because its
+   211 rules are overwhelmingly that app's feature CSS.
+
+   That call is still right for the other 210. This one is the exception: the
+   selector is completely generic OutSystems UI, it is what gives every portal
+   dropdown its size, and without it a dropdown renders at the trigger's width.
+
+   Measured 2026-09-07, the "All access" filter opened:
+       portal   .dropdown-list  162x144, min-width 104, max-width 400,
+                                width auto -> sized to its content
+       ours     .dropdown-list  296x112, min-width 0,   max-width none,
+                                width 296 -> stretched to the trigger
+   That is the "dropdowns are too large and not aligned to the content".
+
+   Our bundle already carries the sibling rules from the reskin
+   (`.dropdown-list-small { width: 200px }`, `-large { width: 400px }`), so the
+   design system already has opinions about this widget's width; the base
+   sizing being in an app theme is an accident of where OutSystems put it.
+
+   `width: auto` needs `!important` to beat the inline width the OutSystems UI
+   dropdown script writes onto the element, which is what pins it to the
+   trigger. The portal's own copy carries `!important` for the same reason.
+   -------------------------------------------------------------------------- */
+[data-dropdown].dropdown .dropdown-list {
+  min-width: 104px;
+  max-width: 400px;
+  width: auto !important;
+}
+
+/* --------------------------------------------------------------------------
+   18. A visible page scrollbar, like the portal's
+   --------------------------------------------------------------------------
+   NOT extracted from the portal — there is no global `::-webkit-scrollbar`
+   rule in any of its stylesheets. The portal gets its scrollbar for free:
+   `html { overflow-y: hidden }` + `body { overflow-y: scroll }` makes BODY the
+   root scroller, and Chrome always gives the root scroller a classic 8px bar.
+
+   ODC does not scroll the document. It scrolls an inner
+   `.active-screen.screen-container`, and a non-root scroller on macOS gets an
+   OVERLAY scrollbar — invisible until you scroll, and occupying no layout.
+   So the page reads as having no scrollbar at all.
+
+   This is also the source of a discrepancy that ran through this whole port:
+   the portal's header measures 1432 at a 1440 viewport (8px eaten by the body
+   scrollbar) while ours measured 1440. Same cause.
+
+   Measured 2026-09-07 at 1440 wide, trying the obvious fixes first:
+       overflow-y: scroll          gutter 0   header 1440   (no effect)
+       + scrollbar-gutter: stable  gutter 0   header 1440   (no effect)
+       + scrollbar-width: auto     gutter 0   header 1440   (no effect)
+       + ::-webkit-scrollbar 8px   gutter 8   header 1432   <- matches
+   Only styling the scrollbar pseudo-element opts a non-root scroller out of
+   overlay behaviour in Chrome.
+
+   Colours reuse the same tokens the portal's own scrollbars use
+   (`--scrollbar-thumb-default` / `-hover`), so this matches the dropdown and
+   textarea scrollbars already in the bundle.
+   -------------------------------------------------------------------------- */
+.active-screen.screen-container {
+  overflow-y: scroll;
+}
+
+.active-screen.screen-container::-webkit-scrollbar {
+  -webkit-appearance: none;
+  width: var(--size-4, 8px);
+}
+
+.active-screen.screen-container::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+.active-screen.screen-container::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb-default);
+  border-radius: var(--border-radius-2);
+}
+
+.active-screen.screen-container::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+/* --------------------------------------------------------------------------
+   19. Neutralise the OutSystems ThemeGrid gutter inside portal components
+   --------------------------------------------------------------------------
+   OutSystems adds `ThemeGrid_MarginGutter` AUTOMATICALLY to every widget that
+   is not the first among its siblings — it is the OutSystems 11 grid's
+   "space between adjacent widgets" behaviour, not a style class anyone typed.
+   It applies `margin-left: 1.96078%` (or ~2px on a narrow container).
+
+   The tell is the sibling pattern, measured 2026-09-07 on the pagination row:
+
+       child 0  first  -> no ThemeGrid_MarginGutter
+       child 1..n      -> ThemeGrid_MarginGutter, every one
+
+   Both the six record expressions and the three buttons showed exactly that.
+
+   Portal components are laid out with flex and their own gaps, so this gutter
+   is always wrong inside them. On the pagination row it spaced the words of
+   "1 to 10 of 10 items" apart and pushed the final " items" span onto a second
+   line — 97x43 instead of 40x19 — which made the whole row 68px tall against
+   the portal's 32.
+
+       records   before 121x48   after 121x24   portal 121x24
+       row       before   68     after   32     portal   32
+
+   THIS CANNOT BE FIXED IN THE MARKUP. Because the platform applies the class
+   rather than the widget carrying it, asking mentor to "remove the style
+   class" is a no-op: it reported success, published a real revision, and all
+   seven classes were still present in the rendered DOM. CSS is the only lever.
+
+   Scoped to `fusion-*` and `unified-*` ancestors so it only ever touches the
+   portal component families this bundle owns; an OutSystems 11 screen built
+   on the ThemeGrid keeps its gutters.
+   -------------------------------------------------------------------------- */
+[class*="fusion-"] .ThemeGrid_MarginGutter,
+[class*="unified-"] .ThemeGrid_MarginGutter {
+  margin-left: 0;
+}
+
+/* --------------------------------------------------------------------------
+   20. Input placeholder colour
+   --------------------------------------------------------------------------
+   `old-neo-design-system.css` carries a BARE global rule:
+
+       ::-webkit-input-placeholder { color: var(--input-text-placeholder) }
+
+   Neither extractor whitelist matches it — both key on class names and this
+   has none — so we shipped no placeholder colour at all and every input fell
+   back to OutSystems UI's `var(--text-color-neutral-7, var(--color-neutral-7))`.
+
+   Measured 2026-09-07 on the Users search box, dark theme:
+       portal   rgb(148, 156, 168)     <- --input-text-placeholder
+       ours     rgb(106, 113, 120)     <- OutSystems UI fallback
+   Everything else about that input already matched exactly: 224x32, the same
+   background, the same `1px solid rgb(70,75,86)` border, the same 32px left
+   padding for the magnifier, and the magnifier itself already the same colour.
+   The placeholder was the whole difference.
+
+   `--input-text-placeholder` was already in the bundle (it resolves to
+   `--text-secondary`); only the rule that consumes it was missing.
+
+   The portal ships ONLY the -webkit- prefixed form, which Chrome honours. The
+   standard `::placeholder` is added here as well — a deliberate, small
+   departure so the colour also lands in engines that ignore the prefixed form.
+   -------------------------------------------------------------------------- */
+::-webkit-input-placeholder {
+  color: var(--input-text-placeholder);
+}
+
+::placeholder {
+  color: var(--input-text-placeholder);
+}
+
+/* --------------------------------------------------------------------------
+   21. The hamburger icon: size and centring
+   --------------------------------------------------------------------------
+   The shell sizes and centres the menu toggle's artwork with a rule that names
+   the element type:
+
+       .unified-expand svg { position: relative; top: 50%; left: 50%;
+                             transform: translate(-50%, -50%);
+                             width: 16px; height: 16px; pointer-events: none }
+
+   We render a Phosphor `<i>`, not an `<svg>`, so NONE of it applied. The
+   32x32 button matched the portal exactly — same position, same 8px radius —
+   while the glyph inside was 24px and parked at the text baseline.
+
+   Measured 2026-09-07 at 1100px wide (tablet, where the toggle is shown):
+       portal   icon 16x16, gaps 8/8/8/8
+       ours     icon 24x24, gaps 0/8/8/0
+   After: 16x16, gaps 8/8/8/8.
+
+   Two things this needs that the svg rule does not:
+
+   - `position: absolute`, not `relative`. Relative offsets from the element's
+     STATIC position; an `<svg>` and an inline `<i>` do not share one, because
+     the `<i>` sits on the baseline of a 24px line box. Copying the portal's
+     `relative` verbatim landed it at gaps 18.5/0/-2.5/16. Absolute resolves
+     against `.unified-expand` itself, which is already `position: absolute`.
+
+   - explicit `width`/`height`. As an inline element the `<i>` ignores the
+     `width: 24px; height: 24px` that `.pds-icon` sets for `<svg>` — but
+     absolute positioning blockifies it and those values start applying, which
+     put the icon back to 24x24 even with `font-size: 16px` set. Both the font
+     size and the box have to be pinned.
+
+   Deliberately NOT scoped with `:has()`. A `.unified-expand:has(...)` selector
+   scores (0,2,0) and would beat the base rule's `display: none`, putting the
+   hamburger on screen at desktop width — that exact regression happened on
+   2026-09-07 and is documented in compat/neo-phosphor-bridge.css. This rule
+   only ever touches the icon INSIDE the toggle, never the toggle itself.
+   Verified after: still `display: none`, 0x0, at 1440px.
+   -------------------------------------------------------------------------- */
+.unified-expand .ph.pds-icon {
+  height: 16px;
+  left: 50%;
+  line-height: 1;
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  -webkit-transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%);
+  width: 16px;
+  font-size: 16px;
+}
+
+/* --------------------------------------------------------------------------
+   22. dropdown-right: keep the open list on screen
+   --------------------------------------------------------------------------
+   The OutSystems UI dropdown script puts `dropdown-right` on a filter whose
+   list would otherwise run off the right edge, and `old-neo-design-system.css`
+   is what gives that class meaning:
+
+       .dropdown-right div.dropdown-list { left: auto !important; right: 0 }
+
+   Neither extractor whitelist matches it — both key on class names and
+   `dropdown-right` is in neither list — so we shipped ZERO dropdown-right
+   rules and the class was inert. The list stayed anchored to the trigger's
+   LEFT edge and hung off the viewport.
+
+   Measured 2026-09-07 at 1440 wide on the Users "All status" filter. Trigger
+   and list geometry were already identical to the portal (trigger 102x32 at
+   1298.2-1400, list 151x176, width 150.672px); only the anchoring differed,
+   and the computed `inset` shows it as a straight left/right swap:
+
+       portal   inset: 32px 0px      -180px -48.8281px   right edge 1400
+       ours     inset: 32px -48.8281px -180px 0px        right edge 1448.8
+                                                         -> 8.8px off-screen
+
+   With this rule ours computes `32px 0px -180px -48.8281px`, left 1249.3,
+   right 1400 — identical to the portal.
+
+   Only this one of the three `.dropdown-right` rules in that file is shipped.
+   The other two target `.dropdown-core` and the `vscomp` virtual-select
+   wrapper; both render 0 times on any portal page measured and neither family
+   has a single other rule in this bundle, so emitting them would add dead CSS.
+   -------------------------------------------------------------------------- */
+.dropdown-right div.dropdown-list {
+  left: auto !important;
+  right: 0;
+}
+
+/* --------------------------------------------------------------------------
+   23. Overlay option rows never underline
+   --------------------------------------------------------------------------
+   OutSystems UI ships a global `a:hover, a:focus { text-decoration: underline }`
+   (its base rule is `a { text-decoration: none }`, so the underline is
+   hover-only). On the portal that rule never reaches the header overlay rows,
+   because the portal renders each one as a plain `<div>` and attaches its click
+   listener in JavaScript.
+
+   ODC cannot do that. A Container renders a `<div>` and the platform only emits
+   a click handler for INTERACTIVE widgets, so a Container's OnClick is silently
+   ignored at runtime — the theme row shipped dead in revision 94 for exactly
+   that reason, with no console error and correctly-rendering content hiding it.
+   Making the row work means making it a Link, which renders `<a>`, which then
+   matches OutSystems UI's hover rule and underlines on hover.
+
+   So this is not portal CSS being replicated — it is undoing a side effect of
+   the widget type ODC forces on us. Measured 2026-09-07: the row computed
+   `text-decoration-line: underline` on hover, `none` after this rule, with
+   box (344x40), colour and `cursor: pointer` all unchanged.
+
+   Applied to `.unified-header-overlay-option` rather than to one row, so any
+   overlay row that later has to become a Link behaves the same. Specificity is
+   (0,2,0) against OutSystems UI's (0,1,1), so it wins without `!important`.
+   -------------------------------------------------------------------------- */
+.unified-header-overlay-option,
+.unified-header-overlay-option:hover,
+.unified-header-overlay-option:focus {
+  text-decoration: none;
+}
+
+/* --------------------------------------------------------------------------
+   24. Sortable header icon sits 4px low, because Expression emits a <span>
+
+   The portal renders a sortable header cell as a bare text node plus the icon:
+
+       <th class="sortable" tabindex="0">User<div class="sortable-icon"></div></th>
+
+   An ODC Expression widget cannot emit a bare text node — it always wraps the
+   value in `<span data-expression>`. That span then matches the portal's own
+
+       .table-header th:not(:has([data-checkbox])) > span { line-height: var(--line-height-1) }
+
+   which is 24px, where the portal's bare text inherits the cell's own
+   `line-height: 1`. Both the span and `.sortable-icon` are inline-blocks with
+   `vertical-align: baseline`, so the icon's bottom edge sits on the text
+   baseline — and the taller line box drops that baseline 4px. Measured against
+   the live portal: portal icon y=224.8, ours y=228.8.
+
+   Fix the ICON, not the text. The obvious move is `line-height: 1` on the span
+   to match the portal's bare text node, and it does put the icon at exactly
+   224.8 — but the same portal rule also sets `overflow: hidden`, so shrinking
+   the box to 14px against 19px of text ink clips 2.5px off every descender.
+   "Last login" shipped with the g sliced in half. Do not reach for line-height
+   here.
+
+   Nudging the icon up by the same 4px lands it at 224.8 with the span left
+   alone, so the text keeps its full 24px box and nothing is clipped (2.5px of
+   headroom below the descender, measured).
+
+   Residual: the label text still sits ~1.5px above the portal's on sortable
+   columns (233.8 vs 235.3), because an inline-block span and a bare text node
+   contribute to the line box differently. Left alone deliberately — every way
+   of closing it goes back through the span's box, which is what caused the
+   clipping.
+   -------------------------------------------------------------------------- */
+.table-header th .sortable-icon {
+  vertical-align: 4px;
+}
+
+/* The header LABEL also sat 2px high. Measured against the portal, same 64px th,
+   same `0 24px` padding, same 19px of text ink:
+
+                        portal      ours (before)
+       text top/bottom   24 / 43     21 / 40
+       text centre       33          31
+       icon centre       31          31
+
+   So on the portal the sort icon sits 2px ABOVE the text centre; on ours they were
+   level. Cause: the portal's label is a bare text node riding the th's 14px line
+   box, while ours is an ODC Expression `<span>` — `inline-block` with
+   `line-height: 24px` — so the text centres inside its own 24px box, 2px higher.
+
+   Shifting the span down 2px is deliberate rather than matching the portal's
+   `line-height`. Setting the span to 14px WOULD line the text up, but it gives a
+   14px box holding 19px of ink under the ported `overflow: hidden`, which is
+   exactly what clipped the descender on "Last login" before. The box stays 24px
+   here; only its position moves, so the text lands at the portal's 33 and nothing
+   can clip. See the note above about not using `line-height: 1` on this span. */
+.table-header th > span {
+  vertical-align: -2px;
+}
+
+/* --------------------------------------------------------------------------
+   25. Pagination: the List wrappers must not break the flex row
+
+   The portal paginates with `NeoDesignSystem.Pagination`, and our replica now
+   has that block too, so nothing here restyles OutSystemsUI any more — this
+   section used to map OSUI's `pagination-*` classes onto the portal's look and
+   that whole approach is gone. We build the page-number window ourselves from a
+   `PageItem` list, which is the only way to reproduce the portal's middle-page
+   behaviour (page 4 of 7 shows every page; OSUI's own algorithm shows
+   `1 … 3 4 5 … 7` there and no CSS can reach that).
+
+   The cost of a List widget is two extra wrappers in the DOM. Section 3403
+   styles the button strip as
+
+       .fusion-pagination__buttons { display: inline-flex; flex-wrap: wrap;
+                                     gap: var(--space-1); }
+
+   and every `.fusion-pagination__button` rule assumes the buttons are DIRECT
+   children of that flex container. The List puts its own wrapper and a per-item
+   container in between, both `display: block`, so the buttons stop being flex
+   items and the strip collapses into a 104px-wide, 264px-tall column — every
+   button at the same x, each one 32px lower than the last.
+
+   `display: contents` removes both wrappers from the box tree without removing
+   them from the DOM, so the buttons become direct flex items of the strip again
+   and the portal's rules apply completely untouched. This is the whole reason
+   the two wrappers carry class names at all; they have no appearance of their
+   own. Measured after applying: strip back to 284px wide x 32px tall, 36px
+   button pitch (32px box + 4px gap), identical to the live portal.
+
+   Not scoped to a consumer opt-in class, unlike the OSUI rules this replaces —
+   these two class names exist only inside our own block, so there is nothing
+   else they could reach.
+   -------------------------------------------------------------------------- */
+.fusion-pagination__pages,
+.fusion-pagination__page {
+  display: contents;
+}
+
+/* The List widget also emits a layout marker of its own inside the wrapper:
+
+       <script style="display: flex; height: 0px; width: 100%"></script>
+
+   which exists so an empty List still occupies a line. Harmless while the
+   wrapper is a block, but once the wrapper is `display: contents` that script
+   becomes a flex ITEM of the button strip, and its inline `width: 100%` fills
+   the line — pushing the buttons onto a second and third row (measured: strip
+   292px x 112px, three distinct row tops, prev alone on the first row).
+
+   The width is an INLINE style, so `!important` is required to beat it; the
+   marker carries no content, so hiding it costs nothing. With this rule the
+   strip measures 284px x 32px on a single row with a uniform 36px pitch,
+   matching the live portal exactly. */
+.fusion-pagination__pages > script {
+  display: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   26. Dropdown trigger: the ghost icon button geometry
+
+   The portal's row-actions kebab renders as
+
+       <div class="dropdown-empty-trigger btn btn-icon btn-ghost">
+         <div class="dropdown-empty-button-label"> …Icon… </div>
+       </div>
+
+   and measures 40x40, transparent, no border, 8px radius, display flex.
+
+   Our port carries `.dropdown-empty-trigger` and `.dropdown-empty-button-label`
+   rules, but ONLY modifier ones — `.btn.filter`, `:hover`,
+   `.dropdown-empty--disabled`, `.input.not-valid`. There is no base rule, and
+   `btn-icon` / `btn-ghost` are absent from the bundle entirely (0 occurrences),
+   so the trigger falls through to plain `.btn` and renders 80x40 with a white
+   fill and a 1px border.
+
+   Worth recording why this is a hand-written rule rather than a ported one: on
+   the portal, `.btn-icon` and `.btn-ghost` have **no CSS rule either** — a scan
+   of every rule in all 17 of its readable stylesheets found none, and asking
+   which rules match the trigger element returned an empty set, with no selectors
+   throwing and no adopted stylesheets in play. The portal's trigger nonetheless
+   computes 40x40 / transparent / 8px. I could not attribute those values to any
+   reachable rule, so rather than guess at provenance these declarations target
+   the portal's MEASURED computed values directly.
+
+   Scoped to `.dropdown-empty-trigger` so it cannot reach any other `.btn`. */
+.dropdown-empty-trigger.btn {
+  align-items: center;
+  background-color: transparent;
+  border: 0;
+  border-radius: var(--border-radius-2);
+  display: flex;
+  height: var(--component-size-base);
+  justify-content: center;
+  padding: 0;
+  width: var(--component-size-base);
+
+  /* Base `.btn` sets `min-width: 80px`, which beats the `width` above and held
+     the trigger at 80x40 even with every other declaration here applying.
+     Measured: width computed 80px until this reset was added. */
+  min-width: 0;
+
+  /* Base `.btn` also sets `box-shadow: var(--shadow-0)` — a real drop shadow
+     (0 2px 5px rgba(0,0,0,.08), 0 1px 1px rgba(0,0,0,.12)). It was rendering on
+     the kebab, which is wrong for a ghost icon button: the portal's equivalent
+     trigger computes `box-shadow: none`. Measured on both. */
+  box-shadow: none;
+}
+
+/* Base `.btn:hover` and `.btn:active` set the SOLID button backgrounds
+   (`--button-background-hover` / `--button-background-pressed`), not the ghost
+   ones. And because `.dropdown-empty-trigger.btn` above has equal specificity to
+   `.btn:hover` but comes later in the bundle, it was winning even on hover — so
+   the kebab had NO hover or pressed feedback at all.
+
+   These two rules add the ghost tokens the portal uses, and carry a class more
+   than `.btn:hover` so they win outright rather than by document order.
+   Measured on the portal in dark theme: hover #464b56
+   (`--button-ghost-background-hover`), pressed #5e6471
+   (`--button-ghost-background-pressed`). */
+.dropdown-empty-trigger.btn:hover {
+  background-color: var(--button-ghost-background-hover);
+  border: 0;
+  box-shadow: none;
+}
+
+.dropdown-empty-trigger.btn:active {
+  background-color: var(--button-ghost-background-pressed);
+  border: 0;
+  box-shadow: none;
+}
+
+.dropdown-empty-trigger.btn .ph.pds-icon {
+  color: var(--icon-primary);
+}
+
+/* The kebab glyph sat 2px ABOVE the trigger's centre. Measured: trigger 40x40
+   centred at y=426; the icon's holder div (24px tall, line-height 24px) also
+   centred at 426; but the Phosphor `<i>` inside it is `display: inline` with
+   `line-height: 16px` and `vertical-align: baseline`, so it rides the baseline of
+   the 24px line box and lands centred at y=424. Horizontal was already exact.
+
+   The portal does not hit this: its Icon block renders an inline `<svg>`
+   (`.svg-code`), not a Phosphor `<i>`, so the baseline geometry differs. This is a
+   compat fix for OUR icon mechanism, not a port of a portal rule.
+
+   Making the holder a centring flex box takes the glyph out of inline/baseline
+   flow entirely, so it centres on both axes regardless of line-height. */
+.dropdown-empty-trigger.btn .dropdown-empty-button-label > * {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  line-height: 0;
+}
+
+/* --------------------------------------------------------------------------
+   27. Dropdown panel: inner padding
+
+   The portal wraps its menu items in a `dropdown-empty-popover-content` div
+   carrying `padding: 8px`, so the items sit inset from the panel edge. Our
+   block puts the items straight into the popover, and we never ported a rule
+   for that class — grepping the bundle finds zero occurrences of it — so the
+   items rendered flush against the rounded edge and the menu looked cramped
+   next to the portal's.
+
+   8px is `--space-2` (`--size-4`). Measured on the portal's popover content
+   wrapper; as with section 26 I could not attribute that value to any reachable
+   rule in its stylesheets, so this targets the measured computed value.
+   -------------------------------------------------------------------------- */
+.fusion-dropdown-empty__popover {
+  padding: var(--space-2);
+}
+
+/* --------------------------------------------------------------------------
+   28. Skeleton table: hide the List widget's layout marker
+
+   The same defect as section 25, in a component that invites it. The portal's
+   skeleton markup is shaped for a repeater — `.skeleton-table-header > div`
+   and `.skeleton-table-rows > div` are both `display: contents`, which is
+   exactly where ODC's List widget puts its per-item div, so the List drops
+   straight in with no wrapper fix needed.
+
+   What does NOT drop in is the marker the List emits alongside its items:
+     <script style="display: flex; height: 0px; width: 100%"></script>
+   Measured on our Pagination block, where it became a full-width flex item.
+   Inside `display: table-row-group` it is worse than cosmetic: a non-empty
+   inline child of a row group gets wrapped in an anonymous table-row and
+   table-cell, so it can add a phantom row to the skeleton.
+
+   The width is an inline style, so `!important` is required to beat it.
+   -------------------------------------------------------------------------- */
+.skeleton-table-header > script,
+.skeleton-table-rows > script {
+  display: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   29. The aside must not animate itself open on every page load
+
+   MEASURED 2026-09-08. `.unified-aside` is 72px by default and 256px under
+   `body.is-aside-expanded`, and it carries `transition: width .3s ease-out`.
+   The expanded class is added by InitShell, which runs in the shell block's
+   OnReady — after the first paint. So every refresh paints the rail at 72px
+   and then animates it open. Sampled on the live harness, forcing the same
+   class-driven width change:
+
+     256 -> 216 -> 180 -> 148 -> 120 -> 97 -> 83 -> 73 -> 72
+
+   The portal does not do this: its shell markup already carries the class when
+   the first frame paints, so there is no width change to transition.
+
+   We cannot match that from CSS alone — "has the shell initialised yet" is not
+   something a selector can know — so InitShell now adds `is-shell-ready` to the
+   body after it has applied the expanded state, and the transition is scoped to
+   that class. The user-driven toggle still animates, because by the time anyone
+   can click the toggle the body is ready.
+
+   `.unified-aside-inner` gets the same treatment: it goes 0 -> 256px on the
+   same class, so it would animate alongside.
+   -------------------------------------------------------------------------- */
+body:not(.is-shell-ready) .unified-aside,
+body:not(.is-shell-ready) .unified-aside-inner {
+  transition: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   30. The skeleton block wrapper must not take part in layout
+
+   MEASURED 2026-09-08 against the ODC portal's Users screen, captured mid-load
+   by driving an in-document SPA route change (aside link away, then back) with
+   a MutationObserver already installed, so the observer survives the remount.
+
+   The portal's filter row during loading:
+
+     div.display-flex.justify-content-space-between            1280 x 32
+     `-- div.OSBlockWidget  [data-block*="NeoDesignSystem.SkeletonLoader"]  0 x 0
+         `-- div.skeleton-box.skeleton-alternative.skeleton-l.skeleton-w20  256 x 32
+
+   The block wrapper measures 0 x 0 while its child is 256 x 32, because the
+   portal's own library theme carries
+
+     [data-block*="NeoDesignSystem.SkeletonLoader"] { display: contents }
+
+   (the portal's UI library is itself called NeoDesignSystem -- hence the nds-*
+   class prefix -- and its skeleton block is named SkeletonLoader). With the
+   wrapper collapsed, `.skeleton-box` becomes the direct flex child of the row,
+   so `.skeleton-w20`'s `width: 20%` resolves against the row's 1280px and
+   yields exactly 256px.
+
+   Our extraction never picked this up: it lives in the portal's library theme
+   sheet, not in the sheets we extract from. Without it our block wrapper is a
+   plain flex item, shrink-to-fit, so a percentage width on the skeleton inside
+   it is circular and collapses to 0 -- which is why the filter-row skeletons
+   had to be sized by hand with `min-width: 20%` on bespoke wrapper containers.
+   This rule replaces that workaround with the portal's own mechanism.
+
+   `$=` rather than `*=` so it matches the Skeleton block itself and not
+   SkeletonBox / SkeletonTable, which are laid out by their own rules.
+   -------------------------------------------------------------------------- */
+[data-block$=Skeleton] {
+  display: contents;
+}
+
+/* --------------------------------------------------------------------------
+   31. STICKY COLLAPSED PAGE HEADER
+
+   The portal keeps the page title and its primary action visible as a fixed
+   bar once the list scrolls under them. MEASURED on /usersaccess/ at 1440x700,
+   scrolled, dark:
+
+     wrapper classes  page-header-wrapper page-header-is-relative page-header-collapsed
+     title classes    page-header-title page-header-title-collapsed
+     position         fixed        top 56px    left 256px   width 1176px
+     z-index          20           padding 16px 0
+     title            20px         border-bottom var(--border-subtle), no shadow
+
+   Two things that matter for replication:
+
+   1. The portal ADDS `page-header-collapsed`; it does not swap. Our
+      LayoutHeader renders If(Collapsed, "page-header-collapsed",
+      "page-header-is-relative"), which on collapse DROPS
+      `page-header-is-relative` and with it `z-index: 20` - so the fixed bar
+      would sit under the table. Keying off <body> instead keeps both.
+
+   2. Only `position: fixed` and a body-scoped width are declared upstream;
+      the portal's `top: 56px` / `left: 256px` are the static position a fixed
+      element retains, not declarations. Relying on that is fragile once the
+      class is toggled mid-scroll, so top and left are explicit here, from the
+      same tokens the shell already defines.
+
+   The trigger is a scroll listener adding `is-page-header-collapsed` to
+   <body>. Deliberately NOT bound to LayoutHeader.Collapsed: that class list is
+   renderer-managed, so a re-render (a fetch, a page change) would wipe a
+   JS-applied class - see the framework-rendered-attributes note in the docs.
+   -------------------------------------------------------------------------- */
+
+body.is-page-header-collapsed .page-header-wrapper {
+  position: fixed;
+  top: var(--unified-header-height);
+  left: var(--unified-aside-width);
+  width: calc(100% - var(--size-4) - var(--unified-aside-width));
+  z-index: 20;
+  border-color: var(--border-subtle);
+  transition: width var(--transition-time-l) var(--transition-curve-expressive);
+}
+
+body.is-page-header-collapsed.is-aside-expanded .page-header-wrapper {
+  left: var(--unified-aside-width-expanded);
+  width: calc(100% - var(--size-4) - var(--unified-aside-width-expanded));
+}
+
+/* Tablet and phone: the rail is an overlay, so the bar spans the viewport less
+   the portal's 20px gutter. `left` is left alone here on purpose - a fixed box
+   with `left: auto` keeps its static position, which is where the header
+   already sits at these widths. This is the state the first attempt missed:
+   only `.is-aside-expanded` carried a width, so with the rail collapsed
+   nothing set one and the fixed bar shrink-wrapped to its own content. */
+body.is-page-header-collapsed.is-unified-tablet .page-header-wrapper,
+body.is-page-header-collapsed.is-unified-phone .page-header-wrapper {
+  left: auto;
+  width: calc(100% - 20px);
+}
+
+/* Below --min-supported-width (1040px) the portal stops being responsive: it
+   puts `is-soft-responsive` on <html>, pins body to a 1040px min-width and
+   gives the page a horizontal scrollbar. Its own rule then spans the collapsed
+   bar across the VIEWPORT rather than the content:
+
+     html.is-soft-responsive .nds-layout .page-header-collapsed
+       { left: 0; width: 100% }
+
+   MEASURED on the portal at a 995px viewport: bar 0->995, and the Invite
+   button lands at 856->963, fully visible, while the 968px table scrolls under
+   it. That rule is already in the extracted CSS - but the rules above are
+   later in the cascade at equal specificity, so they were beating it and
+   sizing the bar to the content instead, which pushes the primary action off
+   screen. This restates it with enough specificity to win. */
+
+html.is-soft-responsive body.is-page-header-collapsed .page-header-wrapper {
+  left: 0;
+  width: 100%;
+}
+
+body.is-page-header-collapsed .page-header-title {
+  font: var(--heading-3);
+}
+
+body.is-page-header-collapsed .page-header-title-wrapper,
+body.is-page-header-collapsed .title-text-wrapper {
+  --icon-size-base: var(--icon-size-s);
+}
+
+/* The slide. Transcribed from the portal's own handler (found in its
+   _oschunk-*.js), not inferred from behaviour. The important part is that
+   `transform` is NOT transitioned here:
+
+     during scroll   JS sets style.transition = ""      translateY tracks the
+                                                        scroll delta 1:1
+     on scrollend    JS sets style.transition =          and snaps to 0 (down)
+                     "transform 900ms"                   or -72px (up)
+
+   So the 900ms is a settle at rest, not the motion itself. Declaring a
+   transform transition in CSS would override the empty inline value and turn
+   the 1:1 drag into an easing lag - which is exactly what an earlier attempt
+   did. `width` is transitioned, matching the portal.
+
+   The handler also does three things beyond the transform, all in InitShell:
+   hides .page-header-breadcrumbs and .page-header-details while collapsed, and
+   sets .main-content padding-top to (header height + 16) so the content does
+   not jump when the header leaves the flow. Thresholds are derived from the
+   header's measured height: collapse at offsetHeight - 32 (41px here), with an
+   upper limit of offsetHeight + 72 - 32 (113px). */
+
+/* --------------------------------------------------------------------------
+   32. PAGE HEADER — RULES MISSING FROM THE EXTRACT
+
+   Found by enumerating every rule that matches the portal's page-header
+   subtree and diffing against ours. These exist in a portal stylesheet this
+   repo does not capture, so the selectors were present in our markup with
+   nothing behind them. Copied verbatim from the portal's own declarations.
+
+   `.min-width-m` is 150px: the portal loads two conflicting declarations for
+   it, legacy-neo-theme's 24px (sheet 9) and users-theme's 150px (sheet 12).
+   Equal specificity, so the later sheet wins - confirmed by reading the
+   computed value on the portal, not by guessing the order.
+
+   IT DOES NOT GO ON THE ACTIONS PLACEHOLDER. Measured on the portal, the
+   placeholder is `.page-header-actions.ph` alone (display:flex,
+   min-width:auto) and the APP supplies an inner block div carrying
+   `min-width-m text-align-right`:
+
+     div.page-header-actions.ph          display:flex   min-width:auto
+       div.min-width-m.text-align-right  display:BLOCK  min-width:150px
+         button.btn                      inline-flex, pushed right by
+                                         text-align on a block parent
+
+   Collapsing those classes onto the flex placeholder - which is what our
+   block used to do - silently breaks the alignment: `text-align` has no
+   effect on a flex item, so the button sits at flex-start, 43px (150 - 107)
+   left of where the portal puts it. Fixed structurally in the block and the
+   harness, not with a `justify-content` override we would have invented.
+
+   `.page-title-content` is the other half of the same fix. Our block already
+   renders the element (`b91-pageTitleContent`); the rule was simply never
+   extracted, because it lives in old-neo-design-system.css outside
+   extract_legacy_layout.py's `.ds-layout`/`.main` whitelist. Without
+   `align-self: center` the wrapper stretches to the row's full 40px and the
+   32px title lands at the top of it - the title reads 4px high against the
+   portal (y72 vs y76).
+   -------------------------------------------------------------------------- */
+
+.min-width-m {
+  min-width: 150px;
+}
+
+.page-title-content {
+  align-self: center;
+  min-width: 0;
+}
+
+.page-header-title .title-text-wrapper {
+  display: -webkit-box;
+  overflow: hidden;
+  word-break: break-word;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
+
+.page-header-title-wrapper .skeleton-content {
+  display: flex;
+  align-items: center;
+}
+
+.is-unified-tablet .nds-layout .page-header-collapsed {
+  width: calc(100% - 20px);
+}

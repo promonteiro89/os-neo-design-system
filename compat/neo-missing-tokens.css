@@ -1,0 +1,43 @@
+/* ==========================================================================
+   Custom properties the upstream bundle references but never defines
+   --------------------------------------------------------------------------
+   Hand-authored — NOT generated. `python3 tools/build.py` never touches this.
+
+   Emitted as part of the TOKENS layer of dist/neobase.css, so the single
+   shipped artifact resolves every var() it contains without a second file.
+
+   A var() reference with no definition and no fallback makes the browser drop
+   the WHOLE declaration, so each of these silently disabled a real rule.
+
+   Every value is derived from evidence inside the bundle itself, cited per
+   block — none is invented. The same four are also defined in
+   compat/neo-compat.css, which still exists for the tokens-only path
+   (dist/neo-tokens.css + neo-compat.css, with no bundle). The definitions are
+   identical, so loading both is harmless.
+   ========================================================================== */
+
+:root {
+  /* Leftovers from the old t-shirt spacing scale. Mapped using the bundle's
+     own legacy utility aliases, which are the authoritative translation:
+        .margin-s    { margin: var(--space-2) }   ->  8px
+        .margin-base { margin: var(--space-4) }   -> 16px
+        .margin-m    { margin: var(--space-6) }   -> 24px
+
+     --space-s is referenced 4x (tooltip-wrapper offset, a table cell max-width
+     calc) and --space-base 1x — by `.unified-header-additional-blocks > div`,
+     which sets the gap between header chrome blocks. Without the definition
+     that margin-left was dropped entirely. Measured 2026-09-07. */
+  --space-s: var(--space-2);
+  --space-base: var(--space-4);
+
+  /* --space-m and --border-size-s currently have ZERO references in the
+     assembled bundle — the carousel border and the fusion-pagination margins
+     that used to need them are no longer in the emitted set. They are kept
+     because the reference reappears whenever DROP_COMPONENTS changes, and an
+     unused custom property costs one declaration and renders nothing.
+
+     --border-size-s: the bundle has no border-width scale at all; --size-1 is
+     its 1px step, and every hand-written border elsewhere is `1px solid`. */
+  --space-m: var(--space-6);
+  --border-size-s: var(--size-1);
+}
