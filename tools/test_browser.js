@@ -330,6 +330,163 @@ async function checkCheckboxSizeIsStable(context, base) {
   });
 }
 
+
+/**
+ * Clicking a sortable column header sorts the table and marks the header.
+ *
+ * Sorting is the platform's, driven by each header's Sort Attribute — clearing
+ * that attribute kills sorting outright while leaving the header looking
+ * identical. The `sorted` class is appended by TableRecords, so asserting BOTH
+ * the class and a changed row order distinguishes "the platform ran the sort"
+ * from "a class was painted on".
+ *
+ * The sort is over the whole dataset, not the visible page: names that were not
+ * on page 1 before appear after, which is why this compares first cells rather
+ * than expecting a permutation.
+ */
+async function checkTableSorting(context, base) {
+  await check('Home: table sorts on header click', async () => {
+    const { page } = await openPage(context, `${base}/Home`);
+    await page.waitForTimeout(1200);
+
+    const firstCells = () => page.evaluate(() =>
+      [...document.querySelectorAll('tbody tr')].slice(0, 5)
+        .map((r) => (r.querySelector('td')?.innerText || '').replace(/\s+/g, ' ').trim()));
+
+    const headers = await page.$$('thead th.sortable');
+    assert(headers.length > 0, 'no sortable headers — has the Sort Attribute been cleared?');
+
+    const before = await firstCells();
+    assert(before.length > 0, 'the table rendered no rows');
+
+    await headers[0].click();
+    await page.waitForTimeout(1000);
+    const after = await firstCells();
+    const marked = await page.evaluate(() =>
+      document.querySelectorAll('thead th.sorted').length);
+    await page.close();
+
+    assert(marked > 0, 'no header gained the `sorted` class');
+    assert(JSON.stringify(before) !== JSON.stringify(after),
+           'the header was marked sorted but the rows did not move');
+    return `${headers.length} sortable headers, order changed`;
+  });
+}
+
+/**
+ * Pagination pages the table, moves its active marker, and bounds its arrows.
+ *
+ * This strip is our own library block, not OutSystemsUI's: its window is
+ * hand-built because OSUI's is wrong on middle pages. So the interesting
+ * assertion is not page 2, it is that the window RE-CENTRES — on page 1 it
+ * shows 1-4 and the last page, and by page 4 it has expanded to reach both
+ * ends. A window frozen at "1 2 3 4 ... 7" would still pass a page-2-only test.
+ */
+async function checkPagination(context, base) {
+  await check('Home: pagination pages and re-centres', async () => {
+    const { page } = await openPage(context, `${base}/Home`);
+    await page.waitForTimeout(1200);
+
+    const snap = () => page.evaluate(() => ({
+      first: (document.querySelector('tbody tr td')?.innerText || '')
+               .replace(/\s+/g, ' ').trim(),
+      rows: document.querySelectorAll('tbody tr').length,
+      prev: document.querySelector('[id$=PrevButton]')?.disabled,
+      next: document.querySelector('[id$=NextButton]')?.disabled,
+      win: [...document.querySelectorAll('[id*=PageBtnDesktop]')]
+             .filter((b) => b.offsetParent !== null)
+             .map((b) => (b.innerText || '').trim()),
+      active: [...document.querySelectorAll('[id*=PageBtnDesktop]')]
+                .filter((b) => b.offsetParent !== null
+                            && b.className.includes('--active'))
+                .map((b) => (b.innerText || '').trim()),
+    }));
+
+    const goTo = async (n) => {
+      for (const h of await page.$$('[id*=PageBtnDesktop]')) {
+        if (!(await h.isVisible())) continue;
+        if ((await h.innerText()).trim() === n) {
+          await h.click();
+          await page.waitForTimeout(1000);
+          return true;
+        }
+      }
+      return false;
+    };
+
+    const p1 = await snap();
+    assert(p1.prev === true, 'Prev is enabled on the first page');
+    assert(p1.next === false, 'Next is disabled on the first page');
+    assert(p1.active[0] === '1', `active page is "${p1.active[0]}", not 1`);
+    const last = p1.win[p1.win.length - 1];
+
+    assert(await goTo('2'), 'page 2 was not in the window');
+    const p2 = await snap();
+    assert(p2.active[0] === '2', 'clicking 2 did not move the active marker');
+    assert(p2.first !== p1.first, 'the rows did not change');
+    assert(p2.prev === false, 'Prev is still disabled on page 2');
+
+    const mid = String(Math.max(2, Math.ceil(Number(last) / 2)));
+    assert(await goTo(mid), `middle page ${mid} was not in the window`);
+    const pm = await snap();
+    assert(pm.win.length >= p1.win.length,
+           `window did not re-centre: page 1 showed ${p1.win.join(',')}, `
+           + `page ${mid} shows ${pm.win.join(',')}`);
+
+    assert(await goTo(last), `last page ${last} was not in the window`);
+    const pl = await snap();
+    await page.close();
+    assert(pl.next === true, 'Next is still enabled on the last page');
+    assert(pl.prev === false, 'Prev is disabled on the last page');
+    return `${last} pages, window ${p1.win.join(',')} -> ${pm.win.join(',')}`;
+  });
+}
+
+/**
+ * Dark mode flips the tokens, and going back to light restores them.
+ *
+ * The bundle themes off an attribute on the root element; there is no
+ * prefers-color-scheme support, so this is the only switch. Asserting the round
+ * trip matters as much as the flip: a rule that hardcodes a dark value rather
+ * than overriding a token would pass the first half and fail the second.
+ */
+async function checkDarkTheme(context, base) {
+  await check('dark theme flips tokens, and back', async () => {
+    const { page } = await openPage(context, `${base}/Login`);
+    const read = () => page.evaluate(() => ({
+      theme: document.documentElement.dataset.theme || '',
+      bodyBg: getComputedStyle(document.body).backgroundColor,
+      text: getComputedStyle(document.documentElement)
+              .getPropertyValue('--text-primary').trim(),
+      surface: getComputedStyle(document.documentElement)
+                 .getPropertyValue('--surface-1-default').trim(),
+    }));
+    const setTheme = (t) =>
+      page.evaluate((v) => { document.documentElement.dataset.theme = v; }, t);
+
+    await setTheme('light');
+    await page.waitForTimeout(250);
+    const light = await read();
+
+    await setTheme('dark');
+    await page.waitForTimeout(250);
+    const dark = await read();
+
+    await setTheme('light');
+    await page.waitForTimeout(250);
+    const back = await read();
+    await page.close();
+
+    assert(dark.text !== light.text && dark.surface !== light.surface,
+           'the token values did not change in dark');
+    assert(dark.bodyBg !== light.bodyBg, 'the page background did not change');
+    assert(back.text === light.text && back.surface === light.surface
+             && back.bodyBg === light.bodyBg,
+           'returning to light did not restore the light values');
+    return `${light.surface} <-> ${dark.surface}`;
+  });
+}
+
 // ---------------------------------------------------------------------------
 
 (async () => {
@@ -356,11 +513,20 @@ async function checkCheckboxSizeIsStable(context, base) {
   console.log('\nresponsive');
   await checkCheckboxSizeIsStable(context, base);
 
+  console.log('\ntable');
+  await checkTableSorting(context, base);
+  await checkPagination(context, base);
+
+  console.log('\ntheme');
+  await checkDarkTheme(context, base);
+
   console.log('\nforms');
   await checkPasswordReveal(context, base, 'Login');
   await checkPasswordReveal(context, base, 'VerifyEmail');
   await checkValidationOnSubmit(context, base, 'Login', '#LoginButton');
   await checkValidationOnSubmit(context, base, 'VerifyEmail', '#AgreeButton');
+  await checkValidationOnSubmit(context, base, 'SignUp', '#ContinueButton');
+  await checkValidationOnSubmit(context, base, 'ResetPassword', '#ResetButton');
 
   await browser.close();
 
