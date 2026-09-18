@@ -499,9 +499,14 @@ async function checkDarkTheme(context, base) {
  * should not is a failure, and so is refusing to.
  */
 async function checkSignUpNavigatesOnValidEmail(context, base) {
+  // Every rejection here was a real hole in an earlier version of this
+  // validation. The first attempt was a chain of Index/Substr tests and it
+  // accepted all eight of them; the check is now a single regex in a JS node.
   const CASES = [
     ['someone@example.com', true],
     ['first.last@sub.example.co.uk', true],
+    ['a+tag@example.com', true],
+    ["o'brien@example.com", true],
     ['', false],
     ['   ', false],
     ['notanemail', false],
@@ -509,6 +514,14 @@ async function checkSignUpNavigatesOnValidEmail(context, base) {
     ['a@b', false],
     ['a@b.', false],
     ['a@.com', false],
+    ['a b@example.com', false],          // space in the local part
+    ['a@ex ample.com', false],           // space in the domain
+    ['a@@example.com', false],           // doubled @
+    ['a@b@c.com', false],                // two @
+    ['a@example..com', false],           // consecutive dots
+    ['.a@example.com', false],           // leading dot in the local part
+    ['a@-example.com', false],           // domain label starting with a hyphen
+    ['a@example.c', false],              // single-character TLD
   ];
   await check('SignUp: valid email goes to VerifyEmail', async () => {
     const wrong = [];
@@ -531,6 +544,56 @@ async function checkSignUpNavigatesOnValidEmail(context, base) {
     }
     assert(wrong.length === 0, wrong.join('; '));
     return `${CASES.length} addresses, ${CASES.filter((c) => c[1]).length} accepted`;
+  });
+}
+
+
+/**
+ * The portal chrome renders, at the portal's dimensions.
+ *
+ * The shell is a separate layer that has to be concatenated LAST, after the
+ * components, icons and utilities — the same order the portal loads it in. Get
+ * that wrong and the header and aside still render, still carry their classes,
+ * and are simply the wrong size, which is invisible unless something measures
+ * it. 56px and 256px are the portal's own chrome dimensions.
+ *
+ * The background assertions are the second half: a transparent header means the
+ * shell layer's rules did not land at all, even though the markup is there.
+ */
+async function checkShellChrome(context, base) {
+  await check('shell header and aside render', async () => {
+    const { page } = await openPage(context, `${base}/Home`);
+    await page.waitForTimeout(800);
+    const shell = await page.evaluate(() => {
+      const read = (sel) => {
+        const e = document.querySelector(sel);
+        if (!e) return null;
+        const r = e.getBoundingClientRect();
+        const c = getComputedStyle(e);
+        return { w: Math.round(r.width), h: Math.round(r.height),
+                 bg: c.backgroundColor, position: c.position };
+      };
+      return {
+        header: read('.unified-header'),
+        aside: read('.unified-aside'),
+        asideItems: document.querySelectorAll('.unified-aside a, .unified-aside [class*=item]').length,
+      };
+    });
+    await page.close();
+
+    assert(shell.header, 'no .unified-header on the page');
+    assert(shell.aside, 'no .unified-aside on the page');
+    assert(shell.header.h === 56,
+           `header is ${shell.header.h}px tall, the portal's is 56`);
+    assert(shell.aside.w === 256,
+           `aside is ${shell.aside.w}px wide, the portal's is 256`);
+    assert(!/rgba\(0, 0, 0, 0\)|transparent/.test(shell.header.bg),
+           'header has no background — the shell layer did not land');
+    assert(!/rgba\(0, 0, 0, 0\)|transparent/.test(shell.aside.bg),
+           'aside has no background — the shell layer did not land');
+    assert(shell.asideItems > 0, 'the aside rendered no items');
+    return `header ${shell.header.h}px, aside ${shell.aside.w}px, `
+         + `${shell.asideItems} items`;
   });
 }
 
@@ -559,6 +622,9 @@ async function checkSignUpNavigatesOnValidEmail(context, base) {
 
   console.log('\nresponsive');
   await checkCheckboxSizeIsStable(context, base);
+
+  console.log('\nshell');
+  await checkShellChrome(context, base);
 
   console.log('\ntable');
   await checkTableSorting(context, base);
