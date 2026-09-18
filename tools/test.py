@@ -134,13 +134,17 @@ def check_no_duplicate_files(r):
     verify.py fails with tokens it calls "extra". It does not affect the built
     bundle, which assembles the token layer from an explicit file list.
     """
+    # Match a directory too, not just a file: iCloud duplicates whole folders
+    # ("components 2/"), and a check that only looked at filenames let 34 such
+    # files through into a commit.
+    dupe_name = re.compile(r' \d(\.[^.]+)?$')
     dupes = []
     for dirpath, dirnames, filenames in os.walk(ROOT):
         if '.git' in dirpath.split(os.sep):
             continue
-        for fn in filenames:
-            if re.search(r' \d\.[^.]+$', fn):
-                dupes.append(os.path.relpath(os.path.join(dirpath, fn), ROOT))
+        for name in list(dirnames) + filenames:
+            if dupe_name.search(name):
+                dupes.append(os.path.relpath(os.path.join(dirpath, name), ROOT))
     if dupes:
         r.fail('no duplicate files',
                '%d found, e.g. %s' % (len(dupes), dupes[0]))
