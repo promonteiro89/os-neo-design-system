@@ -1,6 +1,6 @@
 # Neo design tokens
 
-Generated from `neo-design-system.original.css` on 2026-09-11.
+Generated from `neo-design-system.original.css` on 2026-09-18.
 
 612 tokens in light theme, 295 overridden in dark.
 

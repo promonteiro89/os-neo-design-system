@@ -1,0 +1,71 @@
+<!-- Local verification harness for the Login block's CSS.
+     Mirrors the DOM ODC renders for NeoDesignSystem.Login so the extracted
+     rules can be measured without a publish. Serve the repo root and open it:
+
+         python3 -m http.server 8777 --bind 127.0.0.1
+         open http://127.0.0.1:8777/tools/login-harness.html
+
+     The corner artwork stays blank here: its background urls are ODC
+     authoring paths (/NeoDesignSystem/img/...) that only resolve after a
+     publish rewrites them. Everything else is measurable.
+
+     Toggle themes with data-theme="light|dark" on <html>. -->
+<!doctype html><html lang="en" data-theme="dark"><head><meta charset="utf-8">
+<title>login harness</title>
+<link rel="stylesheet" href="/dist/neobase.css">
+<style>
+  /* Stand in for ODC's shell: the 24px body grid and the screen container. */
+  /* ODC's platform reset provides this; neobase.css does not, so the
+     harness has to or every 40px control measures 42. */
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0}
+  body{font-family:"Noto Sans",sans-serif;font-size:14px;line-height:24px;
+       background:#F9FAFB;color:var(--text-primary)}
+  :root[data-theme="dark"] body{background:#181A1F}
+  .active-screen.screen-container{overflow-y:scroll;height:100vh}
+</style></head>
+<body>
+<div class="active-screen screen-container">
+<div class="pds-login">
+  <span class="rectangles rectangle-top-left"></span>
+  <span class="rectangles rectangle-top-right"></span>
+  <span class="rectangles rectangle-bottom-left"></span>
+  <span class="rectangles rectangle-bottom-right"></span>
+  <div class="pds-login-right">
+    <div class="pds-login-right-form">
+      <div class="pds-login-right-logo"><div class="neo-ph"></div></div>
+      <div class="pds-login-right-account">Log in to your OutSystems account</div>
+      <div>
+        <div class="pds-login-right-inputs">
+          <label for="e">Email</label>
+          <input id="e" class="form-control input-large" data-input type="text">
+        </div>
+        <div class="pds-login-right-inputs pds-login-password-field">
+          <label for="p">Password</label>
+          <input id="p" class="form-control input-large" data-input type="password">
+          <div class="pds-login-password-eye">&#128065;</div>
+        </div>
+        <!-- The empty signed-in slot is LOAD-BEARING. Omitting it is what made
+             this harness report a false zero: as a flex item it costs the
+             row's 8px gap plus its own 16px margin-top even at h0. Keep the
+             DOM faithful, dead containers included. -->
+        <div class="pds-login-right-forgot-signedin" id="ForgotContainer">
+          <div class="pds-login-right-signedin" id="SignedInSlot"></div>
+          <a class="link-small" href="#" id="ForgotLink"><span>Forgot password?</span></a>
+        </div>
+        <!-- ButtonLoading's real wrappers: OSInline inline-block outside, an
+             inline OSBlockWidget inside. -->
+        <div class="pds-login-right-button">
+          <div class="OSBlockWidget">
+            <div class="osui-btn-loading OSInline">
+              <div class="OSBlockWidget"><button class="btn btn-primary btn-large">Log in</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pds-login-right-signup-account">Don't have an account? <a class="link-small" href="#">Sign up here</a></div>
+    </div>
+  </div>
+</div>
+</div>
+</body></html>
