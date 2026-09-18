@@ -96,7 +96,6 @@ TOKENS = """/* PDS tokens the pattern references, SCOPED to the login roots.
   --login-text-primary: var(--text-primary);
   --login-text-secondary: var(--text-secondary);
   --login-label: var(--color-neutral-7);
-  --login-input-border: var(--input-border-default);
   --login-link-hover: var(--link-text-hover);
 }
 
@@ -104,10 +103,9 @@ TOKENS = """/* PDS tokens the pattern references, SCOPED to the login roots.
    as it did when this layer was wholesale dark-scoped. */
 [data-theme="dark"] .pds-login,
 [data-theme="dark"] .full-screen-background {
-  --login-text-primary: #FFFFFF;
+  --login-text-primary: #F9FAFB;
   --login-text-secondary: #F9FAFB;
-  --login-label: #FFFFFF;
-  --login-input-border: #4A4E57;
+  --login-label: #F9FAFB;
   --login-link-hover: #F9FAFB;
 }
 """
@@ -191,8 +189,13 @@ def lift_generic():
             decl = [d.strip() for d in m.group(2).split(';') if d.strip()]
             decl = [re.sub(r'/\*.*?\*/', '', d, flags=re.S).strip() for d in decl]
             decl = [d for d in decl if d]
-            out.append('%s {\n%s\n}' % (scope_generic(sel),
-                                         retoken(sel, ';\n'.join('  ' + d for d in decl) + ';')))
+            scoped = scope_generic(sel)
+            body = retoken(sel, ';\n'.join('  ' + d for d in decl) + ';')
+            # The lifted rules go through RESTYLE too. Both `.link-small`
+            # rules arrive by this path, not through keep_rule, so without
+            # this the links kept the old host's 12/16 while everything
+            # around them moved to the 24px grid.
+            out.append('%s {\n%s\n}' % (scoped, restyle([scoped], body)))
             found = True
             break
         if not found:
@@ -285,6 +288,13 @@ ODC_ADAPT = """
    was sized by the <img> it contained. Left-aligned and 32px below, matching
    the host's own #dark-theme-logo rules now captured above.
 
+   THE BOX IS 39px FOR A 32.5px MARK. The new host draws its wordmark 168x32.5
+   inside a 39px box, because an inline <img> in a 24px line-box carries the
+   descender space below it. A background has no such box, so the 6.5px is
+   declared. Without it the heading rode 7px too high - the same class of error
+   as the corner art's 7px, and from the same cause: reading an <img>'s own
+   height as its layout height.
+
    ONLY WHEN THE Logo PLACEHOLDER IS EMPTY. Painting it unconditionally made
    the block's Logo placeholder meaningless: it did nothing, and a consumer
    who dropped their own mark into it got BOTH - their logo drawn over our
@@ -299,9 +309,9 @@ ODC_ADAPT = """
    not: it rendered as a bare <div> with no class at all. */
 
 .pds-login-right-logo:has(> .neo-ph:empty) {
-  background: url(/NeoDesignSystem/img/NeoDesignSystem.outsystemslogolight.svg) no-repeat left center;
-  background-size: 130px 25px;
-  min-height: 25px;
+  background: url(/NeoDesignSystem/img/NeoDesignSystem.outsystemslogolight.svg) no-repeat left top;
+  background-size: 168px 32.5px;
+  min-height: 39px;
 }
 
 [data-theme="dark"] .pds-login-right-logo:has(> .neo-ph:empty) {
@@ -309,19 +319,24 @@ ODC_ADAPT = """
 }
 
 /* ---- ODC adaptation: control metrics ----------------------------------
-   The identity host's login is a PDS page; our controls are Fusion. Button,
-   radius, border colour and background already matched exactly - these three
-   did not. MEASURED at 1280, dark, host vs ours:
+   The host's login is a PDS page; our controls are Fusion. Button, radius,
+   border colour and background already matched exactly - these did not.
+   MEASURED at 1440, dark, NEW host vs Fusion default:
 
-     input height     40px      vs 48px
-     input font       14/17.5   vs 16/24
-     input padding    0 8px     vs 0 16px
-     label colour     #FFFFFF   vs #4F575E (grey)
-     label line-box   21px      vs 24px
+     input height     40px    vs 48px
+     input font       14/24   vs 16/24
+     input padding    0 12px  vs 0 16px
+     label margin     8px     vs 4px      (--space-xs, from the generic layer)
+
+   Only the padding and the height are still adaptations. The new host's text
+   grid is a flat 24px on 14px type, which is ODC's OWN default line-height -
+   so the line-height declarations that used to be here (17.5px on the input,
+   21px on the label) are gone, along with the `.pds-login { line-height: 1.5 }`
+   rule that produced the old 21px grid. Matching this host means getting OUT
+   of the way rather than overriding.
 
    Scoped to the login column so the rest of the design system keeps Fusion
-   sizing. The label colour is dark-only: the host has no light mode, so in
-   light our own form-label token stays correct. */
+   sizing. */
 
 /* The [data-input] attribute is load-bearing here. Our own control rules are
    .form-control[data-input].input-large -> (0,3,0), so a plain
@@ -332,14 +347,130 @@ ODC_ADAPT = """
 .pds-login-right-inputs .form-control[data-input],
 .pds-login-right-inputs .form-control[data-input].input-large {
   height: 40px;
-  padding: 0 8px;
+  padding: 0 12px;
   font-size: 14px;
-  line-height: 17.5px;
 }
 
 .pds-login-right-inputs label {
   color: var(--login-label);
-  line-height: 21px;
+  margin-bottom: 8px;
+}
+
+/* ---- ODC adaptation: give the inputs their hover and focus back -------
+   THE LOGIN LAYER WAS SMOTHERING BOTH STATES. mtsi declares
+
+     .pds-login .form-control { border: 1px solid <colour> !important; ... }
+
+   and an `!important` SHORTHAND carries that importance into every longhand
+   it expands to - border-color included. The design system's own state rules
+
+     .form-control[data-input]:hover { border-color: var(--input-border-hover) }
+     .form-control[data-input]:focus { border-color: var(--input-border-focus) }
+
+   are (0,2,0) and NOT important, so inside the login column they lost
+   outright: the border sat at its resting colour under the cursor and while
+   focused. Nothing looked broken, which is why it survived several passes of
+   measuring geometry - a dead hover state has no geometry.
+
+   Only `border-color` needs restoring. The focus ring still worked throughout,
+   because mtsi sets no box-shadow and so never competed for it.
+
+   NO NEW VALUES. Our --input-border-hover (#777f8d) and --input-border-focus
+   (#b2b4ff) are already byte-identical to the host's own tokens, read off
+   id.outsystems.com, and --component-shadow-focus matches too. This restores
+   the design system's behaviour rather than inventing a login-specific one.
+
+   (0,4,0) and important, to beat mtsi's (0,2,0) important. Scoped to the
+   inputs column so the rest of the pattern is untouched, and covering
+   .input-large because our own sizing rule above uses that selector. */
+
+.pds-login-right-inputs .form-control[data-input]:hover,
+.pds-login-right-inputs .form-control[data-input].input-large:hover {
+  border-color: var(--input-border-hover) !important;
+}
+
+.pds-login-right-inputs .form-control[data-input]:focus,
+.pds-login-right-inputs .form-control[data-input].input-large:focus {
+  border-color: var(--input-border-focus) !important;
+}
+
+/* ---- ODC adaptation: and the ERROR state, smothered the same way ------
+   The same `!important` shorthand ate `not-valid` too, and that one is
+   visible: submit the form empty and every field is marked `not-valid` by the
+   platform, with its message rendered underneath, while the border stays at
+   its resting colour. Measured on ours against the host, both submitted
+   empty: host border rgb(239,78,56), ours rgb(70,75,86).
+
+   It hid behind the message. The copy appears, so the field reads as
+   validated, and only side by side with the host does the missing border show
+   up - which is how it was reported.
+
+   Same shape as the hover and focus rules above, same reason, same tokens:
+   these are the design system's own, restored rather than invented. Only
+   border-color needs it. The error focus ring is a box-shadow, mtsi never
+   sets one, so `.form-control[data-input].not-valid:focus` still lands it. */
+
+.pds-login-right-inputs .form-control[data-input].not-valid,
+.pds-login-right-inputs .form-control[data-input].input-large.not-valid {
+  border-color: var(--input-error-border-default) !important;
+}
+
+.pds-login-right-inputs .form-control[data-input].not-valid:hover,
+.pds-login-right-inputs .form-control[data-input].input-large.not-valid:hover {
+  border-color: var(--input-error-border-hover) !important;
+}
+
+.pds-login-right-inputs .form-control[data-input].not-valid:focus,
+.pds-login-right-inputs .form-control[data-input].input-large.not-valid:focus {
+  border-color: var(--input-error-border-focus) !important;
+}
+
+/* ---- ODC adaptation: the password group's own bottom margin -----------
+   RESTYLE puts 24px under every .pds-login-right-inputs, which is the gap
+   between the email group and the password group. The gap from the password
+   group down to the forgot row is 16px, and both groups carry the same class.
+
+   The password column is already marked .pds-login-password-field for the
+   reveal icon below, so that class is the only thing distinguishing the two -
+   no :nth-child, which would silently pick the wrong group if a consumer ever
+   adds a field. The doubled class beats the (0,1,0) !important from the
+   restyled rule. */
+
+.pds-login .pds-login-right-inputs.pds-login-password-field {
+  margin-bottom: 16px !important;
+}
+
+/* ---- ODC adaptation: collapse the unused "keep me signed in" slot -----
+   THE SLOT IS EMPTY AND IT STILL COSTS 24px. The forgot row is
+   `display:flex; flex-direction:column-reverse; gap:8px` holding two
+   children: the forgot link and .pds-login-right-signedin, the container a
+   consumer drops a "keep me signed in" checkbox into. Left empty it measures
+   h0 - but a zero-height flex item is still a flex item, so the row pays the
+   8px gap for it, and mtsi gives it `margin-top: 16px` on top. Measured live:
+   row h48 against the host's h24, and every widget below it 24px low.
+
+   The old host had the same slot and the same dead space (its row measured
+   h40 and ours matched it exactly), which is why this never showed up before.
+   The new host has no signed-in control at all, so the row is just the link.
+
+   `display:none` rather than a margin reset, because an element with
+   display:none is not a flex item and so generates no gap either; zeroing the
+   margin alone would leave the 8px. This is the bundle's own idiom - the
+   portal's empty state hides seven slots the same way - and it makes the slot
+   behave like a real optional placeholder: leave it empty and the row is one
+   line like the new host, drop a checkbox in and the old two-line layout comes
+   back with its spacing intact.
+
+   A consumer who puts a PLACEHOLDER in the slot rather than a widget will
+   render an empty <div> inside it, which is not :empty; that case needs the
+   `:has(> .neo-ph:empty)` form the wordmark uses. Nothing renders one today.
+
+   `!important` is not optional. mtsi declares `display: flex !important` on
+   this class, so the first attempt at (0,1,1) lost outright and the slot
+   stayed a flex item - visibly identical to having written no rule at all. */
+
+.pds-login-right-signedin:empty {
+  display: none !important;
 }
 
 /* ---- ODC adaptation: the host's inline-block containers ---------------
@@ -364,20 +495,6 @@ ODC_ADAPT = """
   vertical-align: top;
 }
 
-/* ---- ODC adaptation: the host's body line-height ----------------------
-   outsystems.css gives the login page `body { line-height: 1.5 }` -> 21px at
-   14px. Our consumer inherits ODC's 24px, which stretched every text box in
-   the column: the "Forgot password" link measured h24 against the host's h16,
-   and the button label h24 against h14.
-
-   Applied to .pds-login rather than to body: the host can set it on body
-   because its login IS the page, but a library block must not restyle the
-   page around it (same reason mtsi's own body/html overrides are dropped). */
-
-.pds-login {
-  line-height: 1.5;
-}
-
 /* ---- ODC adaptation: the password reveal control ---------------------
    The host renders `span.pds-login-input` (INLINE, position:relative) holding
    the input and the eye button as siblings, and positions the eye against
@@ -392,8 +509,20 @@ ODC_ADAPT = """
    column's bottom edge IS the input's bottom edge, so a bottom offset of
    (40 - 16) / 2 centres the icon in the field deterministically.
 
-   Measured against the host: eye 912->928 y373->389, ours 912->928 y374->390.
-   One pixel low, and that pixel is the host's inline-box rounding, not ours.
+   The new host insets it 12px from the field's right edge, not 8, and inks it
+   a flat #B3BAC4 rather than white at half opacity. #B3BAC4 is exactly our own
+   --neutral-8 in dark, which --icon-primary points at, so the token carries it
+   in both themes. Measured: host icon 904->920 y363->379 inside a field
+   500->932 y351->391, so 12px in from the right and 12px from each edge
+   vertically, at an effective opacity of 1 all the way up its ancestor chain.
+
+   `opacity: 1` IS AN OVERRIDE, NOT A DEFAULT. Dropping the old `opacity: 0.5`
+   from this rule did not remove it - mtsi declares it on the bare
+   .pds-login-password-eye class underneath, so the icon kept rendering at half
+   strength in BOTH themes (#B3BAC4 at 50% over #181A1F is about #666A72,
+   visibly dimmer than the host). Deleting a declaration only uncovers whatever
+   the cascade already had; when the point is to reach a specific value, the
+   value has to be stated.
 
    It is a Container, not a Button. The control is inert on this template, and
    an ODC Button widget would bring our own .btn skin - background, border,
@@ -405,13 +534,28 @@ ODC_ADAPT = """
 
 .pds-login-password-field .pds-login-password-eye {
   position: absolute;
-  right: 8px;
-  /* top:auto is load-bearing. The dark rule above sets top:0 at the same
-     specificity (0,2,0), and with an explicit height a non-auto `top` wins
-     over `bottom` outright - the icon pinned to the column's top edge, 36px
-     high, until this reset it. */
-  top: auto;
-  bottom: 12px;
+  right: 12px;
+  /* ANCHORED TO THE TOP, NOT THE BOTTOM. This used to read `top: auto;
+     bottom: 12px`, which centres the icon only while the field is exactly
+     label + input: 24 + 8 + 40 = 72, and 72 - 12 - 16 = 44. Add anything
+     underneath and the icon follows the bottom edge away from the input.
+
+     A validation message did exactly that: the field grew 72 -> 92 and the
+     computed top went 44 -> 64, dropping the icon 20px - out of the box,
+     sitting on its lower border. Measured on Login before and after submit.
+
+     44px is that same resting position stated from the top instead, so
+     anything appended below the input - a message, a password-requirements
+     list - no longer moves it. It does assume the standard 24px label plus
+     the 8px gap; a label that wrapped to two lines would need this revisited.
+     The durable fix is a relative wrapper around the input alone, with the
+     icon inside it, which is harness markup rather than CSS.
+
+     `bottom: auto` is load-bearing in the same way `top: auto` was before it:
+     the dark rule above sets top:0 at the same specificity (0,2,0), and with
+     an explicit height a non-auto `top` wins over `bottom` outright. */
+  top: 44px;
+  bottom: auto;
   margin: 0;
   width: 16px;
   height: 16px;
@@ -420,38 +564,459 @@ ODC_ADAPT = """
   justify-content: center;
   font-size: 16px;
   line-height: 1;
-  color: var(--login-text-primary);
-  opacity: 0.5;
+  color: var(--icon-primary);
+  opacity: 1;
   cursor: pointer;
 }
 
 .pds-login-password-field .pds-login-password-eye:hover {
+  color: var(--login-text-primary);
+}
+
+/* ---- ODC adaptation: the submit button needs NOTHING -----------------
+   There used to be a rule here forcing the label to 400 weight, no tracking
+   and a 14px line-height. It is gone, and its absence is the match.
+
+   The old host declared `.btn { font-weight: 500 }` and RENDERED 400: the only
+   noto-sans faces it loaded were 400 and 600, and with no 500 available CSS
+   font matching falls to the next lighter face. Our bundle pulls a real Noto
+   Sans 500, so copying the declaration gave a heavier label than the host's,
+   and the rule declared what the host RENDERED instead.
+
+   The new host loads a genuine Noto Sans 500 (document.fonts confirms the 400,
+   500 and 600 faces all `loaded`) and renders "Log in" at 41.52px. Probed in
+   the host's own font at its own 0.1px tracking: 400 -> 40.92, 500 -> 41.52,
+   600 -> 42.19. It is really drawing 500.
+
+   Our base .btn already resolves to exactly that - `--actions-base` is
+   500 14px/24px, `--letter-spacing-3` is 0.1px, `--component-size-base` is
+   40px and the padding is `0 var(--space-4)` = 0 16px. Every one of those is
+   the new host's measured value, so the correct adaptation is none at all. */
+
+/* ---- ODC adaptation: the verify-email card ---------------------------
+   NOT EXTRACTED - this component only appears on the host's signup step 2
+   (/community/signupactivation), which is not in reference/raw. Measured live
+   at 1440 dark: `.card.email-card`, h80, background #24262C, radius 8px,
+   padding 0 24px, display:flex, holding a 48x48 icon and a text block 24px to
+   its right.
+
+   #24262C is our own --neutral-1 in dark, which --surface-1-default points at,
+   so the token carries it and light gets a white card on the #F9FAFB ground
+   rather than a hand-picked grey. The host has no light signup to compare.
+
+   `min-height` rather than `height`: the second line is the user's email
+   address and the host clamps it to one line, but a long address in a narrower
+   column should be allowed to grow rather than overflow a fixed box. */
+
+.pds-login .email-card {
+  display: flex;
+  align-items: center;
+  min-height: 80px;
+  margin-bottom: 24px;
+  padding: 0 24px;
+  border-radius: var(--border-radius);
+  background: var(--surface-1-default);
+}
+
+/* The icon slot. 48x48 on the host, and `flex: none` so it does not get
+   squeezed by a long address beside it. */
+.pds-login .email-card > :first-child {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  font-size: 48px;
+  line-height: 1;
+  color: var(--text-secondary);
+}
+
+/* `display: block` is load-bearing on both lines. ODC renders a Text widget as
+   an inline <span>, so the title and the address ran together on one line -
+   "We've sent you a verification codename@example.com" - which reads as a
+   missing space rather than a missing line break. */
+/* --login-text-PRIMARY, not -secondary. Both tokens are #F9FAFB in dark, so
+   the wrong one was indistinguishable there and only showed up in light, where
+   --login-text-secondary resolves to the same muted grey as the address line
+   below it - the card's two lines came out identical and the title lost its
+   emphasis. --login-text-primary is #F9FAFB in dark (the host's own value) and
+   the dark ink in light, which is the contrast the card is built on. */
+
+.pds-login .email-card-title {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  color: var(--login-text-primary);
+}
+
+.pds-login .email-card-address {
+  display: block;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 24px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- ODC adaptation: the verify-email row rhythm ---------------------
+   Every row on this screen is 24px below the one above, the same as the other
+   three screens - but only the three that carry .pds-login-right-inputs get
+   that margin from the rules above. The card, the two-column name row and the
+   two consent rows are new container types and need it stated.
+
+   The name row's grid itself (.columns/.columns2/.gutter-base, its -8px
+   margins and 8px item padding) comes from OutSystems UI in the consumer, not
+   from here - only the spacing below it is ours. */
+
+.pds-login .columns.columns2,
+.pds-login .verify-consent-row {
+  margin-bottom: 24px;
+}
+
+/* TWO MARGINS HIDE INSIDE THE NAME ROW. `.columns-item` carries a 16px bottom
+   margin from OutSystems UI, and the field container nested in it carries the
+   24px this file puts on every `.pds-login-right-inputs` - so the row measured
+   h112 against the host's h72, and every row below it was 40px low. Neither
+   margin belongs here: the row's own 24px is the gap, and the two columns end
+   level with each other.
+
+   Cancel them rather than not applying the class: the inner container needs
+   `.pds-login-right-inputs` for the 40px control height and the 8px label gap,
+   which is the whole reason it is there.
+
+   `!important` IS REQUIRED, and specificity will not substitute for it. The
+   24px comes from a RESTYLE-rewritten rule that carries `!important`, so a
+   plain `.pds-login .columns2 .pds-login-right-inputs` at (0,3,0) loses to a
+   bare (0,1,0) - the first attempt did exactly that and left the row 24px
+   tall against the host's 72. Same trap as the input hover states earlier in
+   this file: everything RESTYLE touches is important, so everything that
+   overrides it has to be too. */
+
+.pds-login .columns2 .columns-item,
+.pds-login .columns2 .pds-login-right-inputs {
+  margin-bottom: 0 !important;
+}
+
+/* The consent rows are 12px/16 on the host (`font-size-xs`), not the column's
+   14px/24. At 14px the terms paragraph wrapped to three 24px lines - h72
+   against the reference's h48 - and the subscribe line to two, h48 against
+   h32. */
+
+.pds-login .verify-consent-row {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--neutral-8);
+}
+
+/* The host puts `margin-right-2` on the checkbox itself, an 8px gap to its
+   label. Everything else about the control already matches without a single
+   rule: measured side by side, ours and the host's are both 20x20 with a
+   `::before` of `1px solid #777F8D` at 4px radius and a 12x6 `::after` tick.
+   Only the gap was missing. */
+
+.pds-login .verify-consent-row input[type="checkbox"] {
+  margin-right: 8px;
+}
+
+/* ---- the host's own password-analysis CSS ----------------------------
+   NOT MEASURED AND RE-DERIVED - fetched from the host's stylesheet
+   (NeoDesignSystem.Old_NeoDesignSystem) and reproduced. The earlier version
+   here was hand-written from computed values and got three things wrong that
+   reading the source makes obvious:
+
+     * it toggled `display`, so the reveal could not animate. The host holds
+       the list at `max-height: 0` and transitions to 140px over .4s ease-out.
+     * every marker was a checkmark. The host's DEFAULT marker is a BULLET;
+       the green tick only replaces it on `.rule-pass`, a class real validation
+       adds. With no validation running, ours are all bullets - which is what
+       the host looks like before you type.
+     * the title is a block `<strong>` with 8px above and below, not a
+       separate styled class.
+
+   `--border-radius-1`, `--body-regular-s`, `--text-secondary` and
+   `--text-success` are all root-level tokens we already ship, so this is the
+   host's rule set, not an approximation of it.
+
+   The one deviation is the trigger: the host adds
+   `.password-analysis--show-requirements` from JavaScript, and we use
+   `:focus-within` so the screen needs no client logic.
+
+   THE BULLET IS A LITERAL CHARACTER, NOT A CSS ESCAPE. This block is a plain
+   (non-raw) Python string, so an escape written here is parsed by PYTHON
+   first, before it ever reaches the CSS. A hex escape for the bullet begins
+   with a digit sequence that Python reads as an OCTAL escape, and it came out
+   as U+0082 followed by the digit 2 - the marker rendered as a literal "2".
+   Confirmed in the emitted bytes: 302 202 2. Writing the character itself has
+   no such hazard, and survives however many string layers it passes through.
+   */
+
+.pds-login .password-analysis-requirements {
+  max-height: 0;
+  overflow: hidden;
+  border-radius: var(--border-radius-1);
+  color: var(--text-secondary);
+  font: var(--body-regular-s);
+  transition: max-height .4s ease-out;
+}
+
+.pds-login .verify-password-field:focus-within .password-analysis-requirements {
+  max-height: 140px;
+}
+
+.pds-login .password-analysis-title {
+  display: block;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.pds-login .password-analysis-requirements-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.pds-login .password-analysis-requirements-item > :first-child {
+  position: relative;
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.pds-login .password-analysis-requirements-item > :first-child::before {
+  content: "•";
+  display: block;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.pds-login .password-analysis-requirements-item > :last-child {
+  flex: 1;
+}
+
+/* ---- ODC adaptation: skinning OutSystems UI's DropdownSearch ---------
+   The country field on signup step 2 is OutSystems UI's `DropdownSearch`,
+   which wraps the `vscomp` virtual-select and ships its OWN light skin:
+   measured on our dark column it rendered a white background, a #CED4DA
+   border, a 4px radius and 12px value text, against inputs that are #181A1F
+   on #464B56 at 8px and 14px. It looked like a control from another product.
+
+   compat section 22 records a decision NOT to ship the bundle's `vscomp`
+   rules, because that family rendered zero times on any portal page measured.
+   That was true and is still true of the portal - this component arrives
+   because WE chose DropdownSearch for the country field, so the skin has to
+   come from here rather than from the extraction.
+
+   Scoped to `.pds-login` deliberately. A consuming app's other dropdowns are
+   not ours to restyle; only the one inside this pattern is.
+
+   `!important` ON THE VALUE COLOUR ONLY. Tested rule by rule on the live
+   screen: background, border, radius, height and font-size all apply at
+   (0,2,0), and only the value's colour loses - so only it is marked. Blanket
+   `!important` here would have hidden which of the five actually needed it. */
+
+.pds-login .vscomp-toggle-button {
+  height: var(--component-size-base);
+  border: 1px solid var(--input-border-default);
+  border-radius: var(--border-radius-2);
+  background: var(--input-background-default);
+  font: var(--body-regular-base);
+}
+
+.pds-login .vscomp-value {
+  font-size: 14px;
+  line-height: 24px;
+  color: var(--input-text-placeholder) !important;
+}
+
+.pds-login .vscomp-toggle-button:hover {
+  border-color: var(--input-border-hover);
+}
+
+/* The toggle's own text and its arrow gutter. Ours rendered the value in
+   #2C2F32 - near-black on a near-black field - and reserved 54px on the right
+   where the host reserves 24px. */
+
+.pds-login .vscomp-toggle-button {
+  padding: 4px 24px 4px 16px !important;
+  color: var(--input-text-default);
+}
+
+.pds-login .vscomp-arrow::after {
+  border-color: var(--icon-primary);
+}
+
+/* THE OPEN PANEL. Everything above only skinned the closed control; expanded,
+   ours was still OutSystems UI's stock light dropdown - a white box with black
+   14px rows over a dark page. Measured on the host: panel rows 40px tall on
+   #2F323A with #F9FAFB text at 14/24 and `0 12px` padding, and a search field
+   that is an ordinary 40px input (#181A1F on #464B56, 8px radius) inset 32px
+   on the left for its icon.
+
+   The host reaches this through a bespoke block wrapping the same `vscomp`
+   library ours uses, so these are the same class names on both sides. */
+
+/* THE PANEL IS NOT INSIDE `.pds-login`, AND THAT IS WHY THE FIRST ATTEMPT AT
+   THESE RULES DID NOTHING. vscomp PORTALS the dropbox to the end of <body>:
+
+       body > .vscomp-dropbox-wrapper > .vscomp-dropbox-container > .vscomp-dropbox
+
+   so `.pds-login .vscomp-dropbox` can never match, however correct it looks.
+   Verified with `closest('.pds-login')` returning null on the open panel.
+
+   Scoped to `.vscomp-dropbox-wrapper` instead, which is the portal root. That
+   necessarily reaches every vscomp panel in a consuming app rather than only
+   this one - there is no ancestor tying the panel back to the pattern, and a
+   portaled element cannot be scoped by DOM position. It is the same treatment
+   osui-reskin gives other OutSystems UI components, and compat section 22
+   records that no portal page renders this family at all, so nothing we
+   replicate is affected.
+
+   `--border-radius-2`, NOT `--border-radius`. This file defines
+   `--border-radius: 8px` on `.pds-login, .full-screen-background` - it is one
+   of the PDS tokens deliberately scoped to the login roots rather than declared
+   globally. The portaled panel is outside those roots, so `var(--border-radius)`
+   resolves to NOTHING there, the declaration is invalid at computed-value time,
+   and the whole thing is dropped: the corners stayed square with the rule
+   sitting in the bundle, `!important` and all, matching the element and doing
+   nothing.
+
+   Every other token in these rules is global (`--surface-2-default`,
+   `--input-background-default`, `--input-border-default`,
+   `--input-text-default`), which is exactly why the backgrounds and inks
+   applied on the first try and only the radius did not - the failure pointed
+   straight at the one scoped token.
+
+   `--border-radius-2` is the design system's own 8px step, the one `.btn`
+   uses, and it is defined at the root. The `!important` stays because vscomp
+   sets a radius of its own. */
+
+.vscomp-dropbox-wrapper .vscomp-dropbox {
+  border-radius: var(--border-radius-3) !important;
+  background: var(--surface-2-default);
+  box-shadow: var(--shadow-2);
+  color: var(--text-primary);
+}
+
+.vscomp-dropbox-wrapper .vscomp-search-container {
+  height: 40px;
+  padding: 0 8px 0 32px;
+  border: 1px solid var(--input-border-default);
+  border-radius: var(--border-radius-2) !important;
+  background: var(--input-background-default);
+}
+
+.vscomp-dropbox-wrapper .vscomp-search-input {
+  color: var(--input-text-default);
+  font-size: 14px;
+  line-height: 24px;
+}
+
+/* The search field's PLACEHOLDER, and a deliberate deviation from upstream.
+
+   The portal's design system sets the placeholder colour globally, with
+   `::-moz-placeholder { color: var(--input-text-placeholder) }` and its
+   siblings — rules the extractor now keeps (see the interaction-state family
+   in extract_legacy_widgets.py). But OutSystems UI's own theme ships a MORE
+   SPECIFIC rule for this one field:
+
+       .vscomp-search-input::placeholder { color: var(--color-neutral-9);
+                                           opacity: .5 }
+
+   `--color-neutral-9` is #272b30 — one of the three neutrals OutSystems UI
+   provides and NEVER flips for dark mode. Measured in our dark theme, the
+   placeholder computed rgb(44,47,50) at opacity .5 on a #181A1F field, which
+   is all but invisible. The generic rule cannot beat it on specificity, so the
+   override has to be stated here.
+
+   This targets `--input-text-placeholder` (#949ca8, the design system's own
+   value) rather than reproducing upstream's neutral, and resets the opacity,
+   because a half-transparent light-theme neutral on a dark surface is a bug
+   whichever stylesheet it comes from. */
+.vscomp-dropbox-wrapper .vscomp-search-input::placeholder,
+.dropdown-empty-popover-content .vscomp-search-input::placeholder {
+  color: var(--input-text-placeholder);
   opacity: 1;
 }
 
-/* ---- ODC adaptation: the submit button's type ------------------------
-   The host declares `.btn { font-weight: 500 }` but RENDERS 400, because the
-   only noto-sans faces it loads are 400 and 600 - with no 500 available, CSS
-   font matching for a desired 500 falls to the next lighter face. Our bundle
-   pulls a real Noto Sans 500 from Google Fonts, so the same declaration gave
-   us a genuinely heavier label than the host's.
-
-   Measured width of "Log in" at 14px:
-       host                            40.0
-       ours, 500 + 0.1px tracking      41.5
-       ours, 500, no tracking          40.9
-       ours, 400, no tracking          40.3   <- matches
-
-   So this declares what the host RENDERS rather than what it DECLARES, which
-   is the only way to match it while our font set is the more complete one.
-   `letter-spacing` is ours (our .btn adds 0.1px; the host has none) and
-   line-height is the host's own .btn value. */
-
-.pds-login-right-button .btn {
-  font-weight: 400;
-  letter-spacing: normal;
-  line-height: 14px;
+.vscomp-dropbox-wrapper .vscomp-option {
+  height: 40px;
+  padding: 0 12px;
+  background: transparent;
+  color: var(--input-text-default);
+  font-size: 14px;
+  line-height: 24px;
 }
+
+.vscomp-dropbox-wrapper .vscomp-option:hover,
+.vscomp-dropbox-wrapper .vscomp-option.focused,
+.vscomp-dropbox-wrapper .vscomp-option.selected {
+  background: var(--surface-interactive-hover);
+}
+
+.vscomp-dropbox-wrapper .vscomp-option-text {
+  font-size: 14px;
+  line-height: 24px;
+  color: var(--input-text-default);
+}
+
+/* ---- ODC adaptation: the verify-email password field -----------------
+   TWO THINGS THE FIRST BUILD MISSED ENTIRELY.
+
+   1. NO REVEAL CONTROL. The host's password field is an `InputWithIcons` with
+      the same eye as the login screen, inked #B3BAC4 and inset 12px. Ours was
+      a bare password input.
+
+      It is positioned from the TOP here, not the bottom. On the login screen
+      the input is the last thing in its column, so `bottom: 12px` centres the
+      icon in it; on this screen the requirements list follows the input, and a
+      bottom offset would put the eye under the list. 44px is the label's 24px
+      plus its 8px gap plus (40 - 16) / 2. That assumes the label stays on one
+      line, which "Password" does at 432px.
+
+   2. THE LIST IS NOT ALWAYS VISIBLE. The host keeps
+      `.password-analysis-requirements` at `height: 0; overflow: hidden` and
+      reveals it when the field is engaged. Ours showed it permanently, which
+      is what made the page taller than the reference at rest.
+
+      `:focus-within` does this with no client logic, so the screen stays as
+      inert as the other three - no OnFocus handler, no variable, nothing to
+      publish. A static always-visible list was the earlier decision here and
+      this supersedes it. The rules themselves are up with the rest of the
+      password-analysis block. */
+
+.pds-login .verify-password-field {
+  position: relative;
+}
+
+.pds-login .verify-password-field .pds-login-password-eye {
+  position: absolute;
+  top: 44px;
+  right: 12px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--icon-primary);
+  cursor: pointer;
+}
+
+/* The reveal itself lives with the rest of the password-analysis rules
+   further up, as `max-height` - see there. An earlier `display: none` pair
+   sat here and SURVIVED the rewrite, 230 lines below its replacement and at
+   the same specificity, so it won on source order and the list never rendered
+   however right `max-height` looked. Replacing a rule means deleting the old
+   one, not only writing the new one. */
 
 /* ---- ODC adaptation: don't reserve a scrollbar gutter ----------------
    ODC's shell gives `.screen-container` `overflow-y: scroll`, which reserves
@@ -505,6 +1070,43 @@ ODC_ADAPT = """
 
 [data-theme="dark"] .rectangles {
   filter: none;
+}
+
+/* ---- ODC adaptation: focus ring on the CLOSED dropdown trigger ---------
+   Tab from Last name onto the country trigger and NOTHING changed. The
+   element WAS focused - `:focus` and `:focus-visible` both matched - with
+   `outline-style: none`, `box-shadow: none` and its resting border colour.
+   That is what "you can't navigate to the dropdown" was: focus landed there
+   and rendered nothing, so the stop read as missing.
+
+   The design system does not style it. Its only focused-looking rule is for
+   the OPEN state, `.dropdown-empty.is--open .dropdown-empty-button.input`,
+   and under this naming there is no focus rule for the closed trigger
+   anywhere in NeoDesignSystem.Old_NeoDesignSystem.css. So the extractor
+   never had one to find, and grepping the design system for it comes up
+   empty - correctly. (The OTHER sheet, in the fusion naming, does have
+   `.fusion-dropdown-empty__trigger:focus-visible`, and it is in our bundle;
+   our markup carries the `dropdown-empty-trigger` naming, so it can never
+   match. That near-miss is what made this look already-handled.)
+
+   The host patches the gap at APP level. Its signup app's own 5KB sheet,
+   community.community__*.css - fetched from inside the page, since it is
+   cross-origin to script and a cssRules scan silently skips it - carries
+   exactly this, and this is a verbatim copy:
+
+   `:focus`, not `:focus-visible`, because that is what the host has: the
+   ring shows on a mouse click too. Which is unobservable there in practice,
+   a click also opens the popover and the is--open rule paints the same
+   border and shadow.
+
+   Measured on the host with real Tab presses, one element, both states:
+     focused   border rgb(178,180,255)   shadow rgba(77,74,230,.6) 0 0 0 3px, ...
+     resting   border rgb(70,75,86)      shadow none
+   Ours reported the resting pair WHILE focused. */
+
+.dropdown-empty-trigger.input:focus {
+  border-color: var(--input-border-focus);
+  box-shadow: var(--component-shadow-focus);
 }
 
 """
@@ -568,15 +1170,21 @@ DARK_ONLY = re.compile(r'(?!x)x')  # matches nothing
 #   --dark-accent      #5252F2 == --button-primary-background-default (dark)
 #   #f56451 error icon         == --text-error                        (dark)
 #
-# The rest are login-specific values the portal's own tokens do not carry -
-# the host's input border is #4A4E57 where ours is #464B56, and its body text
-# is pure #FFFFFF where ours is #F9FAFB. Those get a --login-* token defined
-# per theme in TOKENS, so DARK IS PRESERVED EXACTLY and light gets a sane
-# counterpart from the design system.
+#   #464B56 input border      == --input-border-default             (dark)
+#
+# That last one only became a coincidence in the 2026 restyle: the older
+# identity host drew the border at #4A4E57 and needed a --login-* token to
+# carry it. The new host uses #464B56, which IS our own token, so the token
+# is gone and the map points straight at the design system.
+#
+# What is still login-specific is the text: the host's login labels and
+# headings are #F9FAFB in dark, where the design system's --text-primary is
+# not. Those keep a --login-* token defined per theme in TOKENS, so DARK IS
+# THE HOST EXACTLY and light gets a sane counterpart from the design system.
 TOKEN_MAP = [
     ('var(--dark-bg-primary)',            'var(--input-background-default)'),
     ('var(--dark-accent)',                'var(--button-primary-background-default)'),
-    ('var(--dark-border)',                'var(--login-input-border)'),
+    ('var(--dark-border)',                'var(--input-border-default)'),
     ('var(--dark-text-primary)',          'var(--login-text-primary)'),
     ('var(--dark-text-secondary)',        'var(--login-text-secondary)'),
     ('var(--Link-Text-Default, #B2B4FF)', 'var(--link-text-default)'),
@@ -607,7 +1215,109 @@ def retoken(sel, body):
     return body
 
 
-def keep_rule(sel, body, rescope=False):
+# ---------------------------------------------------------------------------
+# THE 2026 RESTYLE.
+#
+# `id.outsystems.dev/login` - the host this whole file was extracted from - has
+# NOT changed; re-measured at 1440 dark it still renders every value this
+# script encodes. What changed is which login OutSystems puts in front of you:
+# `id.outsystems.com/community/login` is a DIFFERENT APPLICATION on a newer
+# design system, and that is the page we now match.
+#
+# The two are the same layout at a different rhythm. The old one is a 21px
+# text grid on 14px type (`body { line-height: 1.5 }`) with 4px label gaps,
+# 12px links and 8px input padding; the new one is a flat 24px grid with 8px
+# label gaps, 14px links and 12px input padding. Nothing moves horizontally -
+# the column is 432px in both.
+#
+# These are rewrites of declarations the extraction pulled out of the host's
+# own sheets, applied at emission, so the generated file keeps ONE value per
+# property. The alternative - a second layer of `!important` overrides in
+# ODC_ADAPT - would have left every changed property stated twice, with the
+# dead value still reading as the intended one.
+#
+# WHAT IS DELIBERATELY NOT MATCHED: the corner artwork. The new host ships
+# none at all; ours stays, which is the whole point of keeping the assets.
+RESTYLE = [
+    # The wordmark. The new host draws a 620x120 PNG at 168x32.5 inside a
+    # 39px inline box; ours is a 130x25 SVG, whose aspect (5.200) is within
+    # 0.6% of the host's (5.167), so the same asset scales into the same box.
+    (r'\.pds-login-right-logo img', {'height': '32.5px', 'width': '168px'}),
+
+    # The heading. 600 -> 500 with -0.2px tracking, and the 48px padding-top
+    # goes: on the old host the mark sat 80px above the heading (32 margin +
+    # 48 padding), on the new one it is the 32px margin alone.
+    (r'\.pds-login-right-account',
+     {'font-weight': '500', 'letter-spacing': '-0.2px', 'padding-top': None}),
+
+    # Field rhythm. Email group -> password group is 24px now, not 16.
+    # (The password group keeps 16px to the forgot row - see ODC_ADAPT.)
+    (r'\.pds-login-right-inputs', {'margin-bottom': '24px'}),
+
+    # Forgot row -> button is a flat 24px. It used to be 36px, the row's own
+    # 24px bottom margin plus this 12px top margin, which is why the
+    # inline-block note in ODC_ADAPT exists: as blocks those two collapsed to
+    # 24px and only summed correctly once they stopped collapsing. With the
+    # top margin gone the row's 24px stands alone and collapsing is moot -
+    # but the inline-block rule STAYS, because -signup-account's 16px top
+    # margin still has to sum with the button's 16px bottom margin.
+    (r'\.pds-login-right-button', {'margin-top': '0'}),
+
+    # The column's top. The new host's wordmark starts at y96, ours at y95 -
+    # a uniform 1px lift of the whole column, invisible in isolation and the
+    # only thing left once everything below lined up. The host's 96 is 64px of
+    # page chrome plus a 32px logo margin; ours is this padding alone.
+    (r'\.pds-login-right', {'padding-top': '96px'}),
+
+    # Both links and the sign-up line: 12/16 and 12/18 -> 14/24.
+    (r'\.pds-login \.link-small', {'font-size': '14px', 'line-height': '24px'}),
+    (r'\.pds-login-right-signup-account',
+     {'font-size': '14px', 'line-height': '24px'}),
+]
+RESTYLE = [(re.compile(p), d) for p, d in RESTYLE]
+
+
+def restyle(parts, body):
+    """Rewrite extracted declarations to the new host's values.
+
+    Matches on the WHOLE selector, so a rule is only touched when the selector
+    is exactly the one named. `.pds-login-right-inputs` must not catch
+    `.pds-login-right-inputs p`, whose 24px line-height is already the host's
+    and whose margin is deliberately 0.
+
+    EVERY selector in the rule has to match, not just one. The button's
+    `margin-top` reset was landing on `.pds-login-right-button, ... > div,
+    ... > div > div { width: 100% }` as well, zeroing a margin on two inner
+    divs that never had one. Harmless in this instance, and exactly the kind
+    of thing that stops being harmless the next time the table grows.
+    """
+    for pat, decls in RESTYLE:
+        if not all(pat.fullmatch(p.strip()) for p in parts):
+            continue
+        for prop, val in decls.items():
+            # Anchored at the line start so `width` cannot match `max-width`.
+            rx = re.compile(r'(?m)^([ \t]*)%s\s*:[^;\n]*;?[ \t]*$'
+                            % re.escape(prop))
+            if rx.search(body):
+                if val is None:
+                    body = rx.sub('', body)
+                else:
+                    body = rx.sub(
+                        lambda m, p=prop, v=val:
+                        '%s%s: %s !important;' % (m.group(1), p, v), body)
+            elif val is not None:
+                # Match the indent the rule already uses - keep_rule bodies
+                # are 4-space, lift_generic's are 2.
+                ind = re.search(r'(?m)^([ \t]+)\S', body)
+                ind = ind.group(1) if ind else '    '
+                body = (body.rstrip().rstrip(';')
+                        + ';\n%s%s: %s !important;' % (ind, prop, val))
+        # Dropping a declaration can leave a blank line behind.
+        body = re.sub(r'\n[ \t]*\n', '\n', body)
+    return body
+
+
+def keep_rule(sel, body, rescope=False, in_media=False):
     if sel.startswith('@keyframes'):
         return '%s {%s}' % (sel, body) if KEEP.search(sel) else None
     parts = []
@@ -627,7 +1337,15 @@ def keep_rule(sel, body, rescope=False):
         parts.append(s)
     if not parts:
         return None
-    return '%s {%s}' % (',\n'.join(parts), retoken(' '.join(parts), body).rstrip())
+    body = retoken(' '.join(parts), body)
+    # RESTYLE IS A DESKTOP-LAYER TABLE. `.pds-login-right` carries a
+    # padding-top in FOUR media queries (600, 600-768, 768+, 991.98) and
+    # rewriting it inside them would flatten every responsive value to the
+    # desktop one. No entry targets a media rule today, so this only
+    # guarantees it stays that way.
+    if not in_media:
+        body = restyle(parts, body)
+    return '%s {%s}' % (',\n'.join(parts), body.rstrip())
 
 
 def extract(path, rescope):
@@ -635,7 +1353,8 @@ def extract(path, rescope):
     css = open(path, encoding='utf-8').read()
     for sel, body in rules(css):
         if sel.startswith('@media'):
-            inner = [keep_rule(s, b, rescope) for s, b in rules(body)]
+            inner = [keep_rule(s, b, rescope, in_media=True)
+                     for s, b in rules(body)]
             inner = [r for r in inner if r]
             if inner:
                 out.append('%s {\n%s\n}' % (sel, '\n'.join(inner)))
@@ -656,7 +1375,8 @@ def main():
 
     header = ('/* GENERATED by tools/extract_login.py — do not hand-edit.\n'
               '   Source: id.outsystems.dev login.css + mtsi-dark-theme.css\n'
-              '   (upstream: ProductDesignSystem.Patterns.LoginScreen). */\n\n')
+              '   (upstream: ProductDesignSystem.Patterns.LoginScreen).\n'
+              '   Restyled to id.outsystems.com/community/login — see RESTYLE. */\n\n')
     css = (header + TOKENS
            + '\n/* ---- base pattern (light) ------------------------------ */\n\n'
            + '\n\n'.join(base)
