@@ -487,6 +487,53 @@ async function checkDarkTheme(context, base) {
   });
 }
 
+
+/**
+ * A well-formed email on SignUp navigates to VerifyEmail; a malformed one does
+ * not, and marks the field.
+ *
+ * The rejection cases are the point. The first version of this validation
+ * required a dot somewhere after the @ and nothing more, so "a@b." sailed
+ * through to VerifyEmail — a happy-path-only test would have called that
+ * working. Each case below is asserted in BOTH directions: navigating when it
+ * should not is a failure, and so is refusing to.
+ */
+async function checkSignUpNavigatesOnValidEmail(context, base) {
+  const CASES = [
+    ['someone@example.com', true],
+    ['first.last@sub.example.co.uk', true],
+    ['', false],
+    ['   ', false],
+    ['notanemail', false],
+    ['@example.com', false],
+    ['a@b', false],
+    ['a@b.', false],
+    ['a@.com', false],
+  ];
+  await check('SignUp: valid email goes to VerifyEmail', async () => {
+    const wrong = [];
+    for (const [email, shouldNavigate] of CASES) {
+      const page = await context.newPage();
+      await page.goto(`${base}/SignUp`, { waitUntil: 'networkidle', timeout: 45000 });
+      if (email) await page.fill('#EmailInput', email);
+      await page.click('#ContinueButton');
+      await page.waitForTimeout(1400);
+      const navigated = /VerifyEmail/.test(page.url());
+      const marked = await page.evaluate(() =>
+        document.querySelectorAll('.not-valid').length);
+      await page.close();
+
+      if (navigated !== shouldNavigate) {
+        wrong.push(`${JSON.stringify(email)} navigated=${navigated}`);
+      } else if (!shouldNavigate && marked === 0) {
+        wrong.push(`${JSON.stringify(email)} was rejected but not marked invalid`);
+      }
+    }
+    assert(wrong.length === 0, wrong.join('; '));
+    return `${CASES.length} addresses, ${CASES.filter((c) => c[1]).length} accepted`;
+  });
+}
+
 // ---------------------------------------------------------------------------
 
 (async () => {
@@ -527,6 +574,9 @@ async function checkDarkTheme(context, base) {
   await checkValidationOnSubmit(context, base, 'VerifyEmail', '#AgreeButton');
   await checkValidationOnSubmit(context, base, 'SignUp', '#ContinueButton');
   await checkValidationOnSubmit(context, base, 'ResetPassword', '#ResetButton');
+
+  console.log('\nnavigation');
+  await checkSignUpNavigatesOnValidEmail(context, base);
 
   await browser.close();
 
