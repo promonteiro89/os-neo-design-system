@@ -1279,3 +1279,117 @@ body.is-page-header-collapsed .title-text-wrapper {
 .is-unified-tablet .nds-layout .page-header-collapsed {
   width: calc(100% - 20px);
 }
+
+/* --------------------------------------------------------------------------
+   33. OUTSYSTEMS UI BUTTON-LOADING SPINNER, ON A COLOURED BUTTON
+
+   The design system already says what a spinner inside a primary or
+   destructive button should look like - white, not grey:
+
+     .btn.btn-primary .loading-spinner .spinner-line   { stroke: var(--spinner-white-line) }
+     .btn.btn-primary .loading-spinner .spinner-background { stroke: var(--spinner-white-background) }
+
+   But those target `.loading-spinner` with `.spinner-line` / `.spinner-background`
+   children, which in this bundle is a COLOUR-ONLY family: four rules, no
+   geometry and no animation, because the element they style is drawn by a
+   stylesheet we do not carry. Nothing renders it.
+
+   What consumers actually have is OutSystems UI's ButtonLoading, whose spinner
+   is ONE element (`.osui-btn-loading__spinner-animation`) drawn as a 16px ring
+   with three borders coloured and the top transparent. It already reads our
+   `--spinner-line` token, so on a white surface it is correct - and on a
+   primary button it came out mid-grey `#949CA8` on `#5252F2`, which is the
+   design system's own intent going unapplied for want of a selector that
+   matches.
+
+   Measured on a real ButtonLoading inside .btn-primary before this rule:
+   border-right 2px solid rgb(148,156,168), border-top transparent.
+
+   Specificity is deliberate. OutSystems UI's own rule is
+   `.osui-btn-loading .btn .osui-btn-loading__spinner-animation` at (0,3,0), so
+   a plain `.btn-primary .osui-btn-loading__spinner-animation` would tie and be
+   settled by load order. Leading with `.osui-btn-loading` makes this (0,4,0)
+   and it wins outright.
+   -------------------------------------------------------------------------- */
+
+.osui-btn-loading .btn.btn-primary .osui-btn-loading__spinner-animation,
+.osui-btn-loading .btn.btn-destructive .osui-btn-loading__spinner-animation {
+  border-color: var(--spinner-white-line);
+  border-top-color: transparent;
+}
+
+/* The pattern also restyles the button it wraps, in two ways the reference
+   does not. Both were found by measuring a bare .btn.btn-primary.btn-large
+   outside any wrapper in the same page: white text on rgb(82,82,242) at 14px,
+   matching the reference exactly. Inside the wrapper it came out otherwise.
+
+   1. FONT SIZE, in BOTH states. `.osui-btn-loading .btn > *` sets every child
+      of the button to var(--font-size-s), so the label dropped from 14px to
+      12px the moment the button was wrapped - idle included, not just while
+      loading. It is the only rule sizing that label.
+
+   2. COLOUR, while loading. ButtonLoading sets the button's `disabled`
+      attribute for the duration, which is sensible (it stops a double submit)
+      but then our own .btn-primary[disabled] rules dim it: measured
+      rgb(148,156,168) text on rgb(62,52,172), where the reference stays full
+      indigo with white text. Grey on dimmed indigo is also poor contrast.
+
+   Scoped to .pds-login-right-button for the font size so this does not resize
+   every ButtonLoading in a consuming app, and to the loading state for the
+   colour so a genuinely disabled button still looks disabled. */
+
+.pds-login-right-button .osui-btn-loading .btn > * {
+  font-size: 14px;
+}
+
+.osui-btn-loading--is-loading .btn.btn-primary[disabled] {
+  background: var(--button-primary-background-default);
+  border-color: var(--button-primary-background-default);
+  color: var(--white);
+}
+
+
+/* --------------------------------------------------------------------------
+   The search magnifier cannot take a colour, so it is masked instead
+   --------------------------------------------------------------------------
+   The extracted rule draws the icon as a `content` url, copied from the host.
+   An image dropped in that way is opaque to CSS: the
+   `color: var(--icon-primary)` sitting beside it in that same rule has nothing
+   to tint, and the asset's own `fill="#B3BAC4"` is what renders.
+
+   #B3BAC4 is the DARK theme's icon colour, baked into the file. The host never
+   notices, because its identity pages are dark only. Ours has a light theme,
+   and there the magnifier arrives as a pale grey on a white search box -
+   roughly 2:1 against the background where --icon-primary (#4c525d) gives
+   about 7.5:1. Reported as the icon looking wrong next to the crisp text.
+
+   Position was measured first and is NOT the problem. Ours and the host agree
+   exactly: a 40px container, `top: 50%` resolving to 19px, height 16px,
+   left 12px, `translateY(-50%)`, icon centre and container centre both landing
+   on the same pixel. Same SVG, same content hash.
+
+   So the fix is only about colour: paint the box with the token and punch the
+   glyph out of it as a mask. The artwork is a single flat shape, which is
+   exactly what masks want. NO SECOND ASSET, for the same reason the corner
+   artwork is recoloured by filter rather than shipped twice - a light copy is
+   another file to keep in step with any re-export.
+
+   Only three declarations are restated. Width, height, left, top and the
+   transform still come from the extracted rule above, which is where the
+   geometry belongs. This file is concatenated last, so an identical selector
+   wins on order without !important.
+
+   The url below is the authoring form ODC rewrites at publish. It is known to
+   be rewritten for a `content` url; if it turns out not to be for a mask, the
+   icon disappears rather than degrading quietly, which is easy to spot.
+
+   (Prose here avoids writing a bare url-paren token: neobase.py greps the whole
+   file, comments included, for asset urls that would not resolve in ODC, and a
+   literal example in a comment fails the build. It did.) */
+
+.dropdown-empty-popover-content .vscomp-dropbox .vscomp-search-wrapper:has(.vscomp-search-input) .vscomp-search-container:before {
+  content: "";
+  background-color: var(--icon-primary);
+  -webkit-mask: url(/NeoDesignSystem/img/NeoDesignSystem.icsearch.svg) no-repeat center / 16px 16px;
+  mask: url(/NeoDesignSystem/img/NeoDesignSystem.icsearch.svg) no-repeat center / 16px 16px;
+}

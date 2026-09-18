@@ -11,7 +11,7 @@ opened — found `ds-accordion` rendering too, and it had been missing from the
 bundle entirely. Widen this list from evidence, and prefer detail//interaction
 views: list pages do not exercise most widgets.
 """
-import os, re, sys
+import os, re, shutil, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build import split_top_level, ROOT
 
@@ -72,6 +72,52 @@ DROP_CARD = re.compile(r'\.ds-ncard')
 # 80441 and the `:where(...)` background override at 477048, so walking the file
 # in order emits the base BEFORE the override. That matters because `:where()`
 # contributes no specificity — the override wins on order alone.
+# The dropdown-empty family, added 2026-09-17. SAME SHAPE OF BUG AS THE SKELETON
+# ABOVE, and found the same way: the bundle carried 30 `.dropdown-empty*` rules
+# and not one of the component's base rules. What it had were the fragments whose
+# selectors happen to name an OutSystems UI class, recovered incidentally by
+# osui_reskin.py because `not-valid`, `btn` and `filter` are in its CORE set:
+#
+#     .dropdown-empty-trigger.input.not-valid        shipped  (has `not-valid`)
+#     .dropdown-empty-trigger.input.not-valid:hover  shipped  (has `not-valid`)
+#     .dropdown-empty-trigger.input                  DROPPED  (no CORE token)
+#
+# So the error and hover states of the trigger shipped without the trigger. The
+# component renders unskinned while a grep for the family looks healthy - which
+# is exactly the trap the skeleton note above describes.
+#
+# This is the portal's OWN dropdown, not an OutSystems UI widget, so it belongs
+# here rather than in the re-skin layer. It also exists nowhere else: the CURRENT
+# Fusion theme has zero `.dropdown-empty` SELECTORS (its occurrences of the
+# string are the new `fusion-dropdown-empty` web component, a different
+# generation with BEM names and its own Stencil implementation). This legacy
+# stylesheet is the only source for the version the portal actually renders.
+DROPDOWN_EMPTY = re.compile(r'\.dropdown-empty(?![a-z])')
+
+# Two exclusions, both for families we do not ship and which these rules are
+# dead without - the same reasoning as DROP_CARD above.
+DROPDOWN_DROP = re.compile(r'\.ds-combo-picker|\.ds-date-picker')
+
+# The popover HOSTS a virtual-select, and those rules are kept on purpose even
+# though their subject is `vscomp`, which osui_reskin.py drops as vendor
+# internals. Scoped under `.dropdown-empty-popover-content` they are not vendor
+# defaults at all - they are what turns vscomp into the portal's own list:
+#
+#     .dropdown-empty-popover-content .vscomp-toggle-button { display: none }
+#
+# is how the portal suppresses vscomp's own trigger so its `.dropdown-empty`
+# trigger is the only visible control. Dead without the ancestor, so they can
+# only ship with it.
+DROPDOWN_HOSTED = re.compile(r'\.dropdown-empty-popover-content\s')
+
+
+def is_dropdown_subject(prelude):
+    """True when the rule styles the dropdown itself, not a family we drop."""
+    if DROPDOWN_DROP.search(prelude):
+        return False
+    return bool(DROPDOWN_EMPTY.search(prelude) or DROPDOWN_HOSTED.search(prelude))
+
+
 SKELETON = re.compile(r'\.skeleton(?![a-z])')
 SUBJECT_NOISE = (
     re.compile(r':where\([^)]*\)'),      # zero-specificity ancestor alternatives
@@ -92,6 +138,67 @@ def is_skeleton_subject(prelude):
     return not s.strip()
 
 
+# The popover's search field draws its magnifier from a portal image, by hashed
+# filename and a path relative to the stylesheet:
+#
+#     content: url(../img/NeoDesignSystem.icsearch__<hash>.svg?<hash>)
+#
+# That path cannot survive the trip into a library theme - ODC rewrites its OWN
+# asset paths at publish but leaves pasted theme CSS verbatim, so the url would
+# 404 silently. neobase.py guards against exactly this and ABORTED the build
+# when these rules first came through, which is the guard doing its job.
+#
+# Rewritten to the authoring form ODC does resolve, the same convention
+# osui_reskin.py uses for its two icons. Import
+# dist/assets/NeoDesignSystem.icsearch__<hash>.svg into the library as an Image
+# named `icsearch` and the reference resolves at publish.
+ICONS = {
+    'NeoDesignSystem.icsearch': 'icsearch',
+}
+
+
+def point_icons_at_library(text):
+    swapped = 0
+    for stem, name in ICONS.items():
+        text, n = re.subn(r'url\(\.\./img/' + re.escape(stem) + r'[^)]*\)',
+                          'url(/NeoDesignSystem/img/NeoDesignSystem.%s.svg)' % name, text)
+        swapped += n
+    if swapped:
+        print('  pointed %d image reference(s) at library Images' % swapped)
+    return text
+
+
+# --------------------------------------------------------------------------
+# Interaction states: the :focus-visible rings and the global placeholder
+# colour.
+#
+# These were missing from the bundle for a long time, and the reason is worth
+# recording: most of them are CLASSLESS. `a:focus-visible` and
+# `::-moz-placeholder` carry no class for a family whitelist to match, so every
+# predicate in this file dropped them, osui_reskin.py's CORE intersection
+# dropped them, and neither extractor left a trace. The bundle therefore
+# defined `--link-shadow-focus` and `--input-text-placeholder` and used
+# NEITHER: links fell back to the browser's focus outline with no ring, and
+# every placeholder fell back to the browser's grey.
+#
+# Measured before the fix: `--input-text-placeholder` resolved to #949ca8 and
+# nothing referenced it, while the dropdown's search placeholder rendered
+# rgb(44,47,50) at opacity .5 — OutSystems UI's own `--color-neutral-9`, a
+# LIGHT-theme neutral, half-transparent on a #181A1F field.
+#
+# Excluded families are the ones we deliberately do not ship: `dropdown-core`
+# (the other dropdown generation), `app-representation` and `ds-columns-right`
+# (portal-only shells, and the latter's classes merely END in `-placeholder`).
+FOCUS_STATE = re.compile(r':focus-visible|::?(?:-webkit-input-|-moz-|-ms-input-)?placeholder\b')
+FOCUS_DROP = re.compile(r'\.dropdown-core|\.app-representation|\.ds-columns-right')
+
+
+def is_focus_subject(prelude):
+    if FOCUS_DROP.search(prelude):
+        return False
+    return bool(FOCUS_STATE.search(prelude))
+
+
 ANIMATION = re.compile(r'animation:\s*([\w-]+)')
 
 
@@ -106,7 +213,9 @@ def collect(css, out):
             continue
         if (KEEP.search(p)
                 or (ACCORDION.search(p) and not DROP_CARD.search(p))
-                or (SKELETON.search(p) and is_skeleton_subject(p))):
+                or (SKELETON.search(p) and is_skeleton_subject(p))
+                or is_dropdown_subject(p)
+                or is_focus_subject(p)):
             out.append((p, body))
 
 
@@ -159,7 +268,7 @@ def main():
 
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     banner = ('/* ' + '=' * 74 + '\n'
-              '   ds-avatar + ds-accordion + skeleton — recovered from\n'
+              '   ds-avatar + ds-accordion + skeleton + dropdown-empty — recovered from\n'
               '   reference/raw/old-neo-design-system.css\n'
               '   ' + '-' * 72 + '\n'
               '   A whitelisted subset of the 1114-selector ds-* library; the rest is dead\n'
@@ -173,10 +282,22 @@ def main():
               '   because it exists only in this legacy stylesheet.\n'
               '   Generated by tools/extract_legacy_widgets.py.\n'
               '   ' + '=' * 72 + ' */\n\n')
+    body = (''.join(k + '\n\n' for k in frames)
+            + '\n\n'.join('%s {%s}' % (p, b) for p, b in kept) + '\n')
+    body = point_icons_at_library(body)
     with open(OUT, 'w', encoding='utf-8') as fh:
-        fh.write(banner
-                 + ''.join(k + '\n\n' for k in frames)
-                 + '\n\n'.join('%s {%s}' % (p, b) for p, b in kept) + '\n')
+        fh.write(banner + body)
+
+    # Copy the images the rewritten urls now name, so the library has something
+    # to import. Same destination as the shell's logos.
+    src_assets = os.path.join(ROOT, 'reference', 'raw', 'assets')
+    dest = os.path.join(ROOT, 'dist', 'assets')
+    if os.path.isdir(src_assets):
+        os.makedirs(dest, exist_ok=True)
+        for f in os.listdir(src_assets):
+            if any(f.startswith(stem) for stem in ICONS):
+                shutil.copy2(os.path.join(src_assets, f), os.path.join(dest, f))
+                print('  asset -> dist/assets/%s' % f)
     print('legacy widgets: %d rules + %d keyframes -> %s (%dKB)'
           % (len(kept), len(frames), os.path.relpath(OUT, ROOT), os.path.getsize(OUT) // 1024))
 
