@@ -4,3 +4,6 @@ odc-tenant
 .DS_Store
 .claude/settings.local.json
 reference/raw/*.prev
+
+# Finder/iCloud duplicate copies ("foo 2.css") are never source.
+* [0-9].*
