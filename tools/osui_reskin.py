@@ -38,6 +38,16 @@ ICONS = {
     'NeoDesignSystem.icsortablexl': 'icsortablexl',
 }
 
+# A few OutSystems UI widgets are addressed by ATTRIBUTE, not by a class of
+# their own. `[data-checkbox]` is the one that matters: the portal's override of
+# OutSystems UI's touch-target sizing is written `.tablet [data-checkbox],
+# .phone [data-checkbox]`, whose only classes are the viewport ones. The CORE
+# test below cannot see it, so all three rules were dropped and the checkbox
+# rendered at OutSystems UI's 32px on tablet and phone instead of the portal's
+# --size-7. Admitting the attribute keeps that override with its :before box and
+# :checked:after tick, which have to travel together or the tick lands wrong.
+CORE_ATTRS = ('[data-checkbox]',)
+
 # OutSystems UI's own widget classes, i.e. what a consuming app actually renders.
 CORE = {
     'btn', 'btn-primary', 'btn-secondary', 'btn-tertiary', 'btn-group',
@@ -128,7 +138,7 @@ def main():
         cls = set(re.findall(r'\.(-?[A-Za-z_][\w-]*)', prelude))
         if any(c.startswith(('ds-', 'fusion-')) for c in cls):
             continue          # the portal's own components, not an OSUI re-skin
-        if not (cls & CORE):
+        if not (cls & CORE) and not any(a in prelude for a in CORE_ATTRS):
             continue
         if any(p in prelude for p in PORTAL_ONLY):
             continue

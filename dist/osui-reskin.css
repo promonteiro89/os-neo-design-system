@@ -10,7 +10,7 @@
    app, where overriding --color-primary and --background-color-primary
    left .btn-primary unchanged at #1068eb.
 
-   426 rules. Vendor internals (flatpickr, vscomp, splide) and the
+   429 rules. Vendor internals (flatpickr, vscomp, splide) and the
    portal's own .ds-* / .fusion-* components are excluded.
    ========================================================================== */
 
@@ -1382,6 +1382,21 @@ span.validation-message {
 .radio-button:checked:hover:before {
   -webkit-filter: brightness(1);
   filter: brightness(1);
+}
+.tablet [data-checkbox],
+.phone [data-checkbox] {
+  height: var(--size-7);
+  width: var(--size-7);
+}
+.tablet [data-checkbox]:before,
+.phone [data-checkbox]:before {
+  height: 100%;
+  width: 100%;
+}
+.tablet [data-checkbox]:checked:after,
+.phone [data-checkbox]:checked:after {
+  left: 4px;
+  top: 6px;
 }
 .nds-rich-text-editor-wrapper:has(.not-valid) .nds-rich-text-editor-helper-text {
   color: var(--helper-text-error);

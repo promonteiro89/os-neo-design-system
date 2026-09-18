@@ -2507,6 +2507,21 @@ span.validation-message {
   -webkit-filter: brightness(1);
   filter: brightness(1);
 }
+.tablet [data-checkbox],
+.phone [data-checkbox] {
+  height: var(--size-7);
+  width: var(--size-7);
+}
+.tablet [data-checkbox]:before,
+.phone [data-checkbox]:before {
+  height: 100%;
+  width: 100%;
+}
+.tablet [data-checkbox]:checked:after,
+.phone [data-checkbox]:checked:after {
+  left: 4px;
+  top: 6px;
+}
 .nds-rich-text-editor-wrapper:has(.not-valid) .nds-rich-text-editor-helper-text {
   color: var(--helper-text-error);
 }
