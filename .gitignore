@@ -7,3 +7,6 @@ reference/raw/*.prev
 
 # Finder/iCloud duplicate copies ("foo 2.css") are never source.
 * [0-9].*
+
+# The deployed app URL is configuration, not source — see odc-app.example.
+odc-app
