@@ -1,0 +1,14 @@
+{
+  "name": "os-neo-design-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Browser tests for the deployed ODC app. The design system itself has no build-time dependencies — see the README.",
+  "license": "ISC",
+  "type": "commonjs",
+  "scripts": {
+    "test": "node tools/test_browser.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}
