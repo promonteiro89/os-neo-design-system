@@ -295,6 +295,41 @@ async function checkValidationOnSubmit(context, base, screen, submitSelector) {
   });
 }
 
+
+/**
+ * The checkbox is the same size at every viewport.
+ *
+ * OutSystemsUI enlarges checkboxes for touch — `.tablet [data-checkbox],
+ * .phone [data-checkbox] { 32px }` — at a specificity our `.checkbox` rule
+ * cannot beat. The portal ships its own override putting it back to --size-7,
+ * and that override was being dropped by the reskin extractor, because its
+ * selector carries no class the whitelist recognises: `[data-checkbox]` is an
+ * attribute, and the only classes present are the viewport ones.
+ *
+ * Desktop looked right, which is exactly why it went unnoticed.
+ */
+async function checkCheckboxSizeIsStable(context, base) {
+  await check('checkbox size is viewport-independent', async () => {
+    const sizes = {};
+    for (const [name, width, height] of
+         [['desktop', 1280, 900], ['tablet', 768, 1024], ['phone', 375, 812]]) {
+      const page = await context.newPage();
+      await page.setViewportSize({ width, height });
+      await page.goto(`${base}/VerifyEmail`, { waitUntil: 'networkidle', timeout: 45000 });
+      sizes[name] = await page.evaluate(() => {
+        const el = document.getElementById('TermsCheckbox');
+        return el ? Math.round(el.getBoundingClientRect().width) : null;
+      });
+      await page.close();
+      assert(sizes[name], `${name}: no TermsCheckbox found`);
+    }
+    const distinct = [...new Set(Object.values(sizes))];
+    assert(distinct.length === 1,
+           `desktop ${sizes.desktop}px, tablet ${sizes.tablet}px, phone ${sizes.phone}px`);
+    return `${distinct[0]}px at desktop, tablet and phone`;
+  });
+}
+
 // ---------------------------------------------------------------------------
 
 (async () => {
@@ -317,6 +352,9 @@ async function checkValidationOnSubmit(context, base, screen, submitSelector) {
   await checkDropdownOpensAndCloses(context, base);
   await checkDropdownEmptyState(context, base);
   await checkDropdownKeyboardEntry(context, base);
+
+  console.log('\nresponsive');
+  await checkCheckboxSizeIsStable(context, base);
 
   console.log('\nforms');
   await checkPasswordReveal(context, base, 'Login');
