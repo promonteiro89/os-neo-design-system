@@ -145,6 +145,7 @@ tools/
   build_all.sh             the whole pipeline, in order — this is what you run
   build.py                 split raw CSS -> src/ + dist/ + reference/
   neobase.py               concatenate the layers into dist/neobase.css, with guards
+  test.py                  the regression suite — run this before committing
   verify.py                prove src/ and dist/ still equal the original
   collisions.py            regenerate the class-collision report
   osui_reskin.py           extract the portal's OutSystems UI re-skin layer
@@ -337,6 +338,52 @@ and `dist/` on every run, so treat those as generated: edit `tools/build.py` (or
 the result against the original as a multiset — so a reordered file passes, but a dropped
 declaration, a changed value or a mangled selector fails. It caught two real mistakes while
 this tree was being built.
+
+## Testing
+
+```bash
+python3 tools/test.py        # nine checks, exits non-zero on failure
+python3 tools/test.py -v     # also list what each check looked at
+```
+
+Standard-library Python only. It covers four things:
+
+| Group | Checks |
+| --- | --- |
+| tree | no Finder/iCloud duplicate copies (`foo 2.css`) |
+| bundle | no new undefined `var(--x)`, every `url()` resolves, `neobase.py`'s six guards |
+| behaviour | `behaviour/*.js` parses, and each script has a re-entry guard |
+| docs | every path in the layout tree above actually exists |
+| build | `verify.py` passes, and a rebuild is byte-for-byte a no-op |
+
+Every check is there because that thing broke at least once, and each was
+mutation-tested — deliberately broken to confirm it fails — rather than just
+observed passing.
+
+Two are worth understanding:
+
+**No duplicate files.** This repo sits under `~/Documents`, so iCloud keeps
+recreating `foo 2.css` beside `foo.css`. They do not reach the bundle, which
+assembles the token layer from an explicit file list, but `verify.py` walks
+`src/00-tokens/components/*.css` and reads the copy as a second definition of
+every token in it. That is what a spurious "extra token" failure means.
+
+**A rebuild is a no-op.** Compares a hash of everything the build can write,
+taken before any check runs, against the same after `build_all.sh`. It has to be
+content hashes rather than `git status`: the drift case that matters is a file
+that was already modified and then gets rewritten, which never shows as a status
+change. The snapshot is taken up front because some checks regenerate the bundle
+as a side effect — the guards live inside `neobase.py` and only run while it
+writes.
+
+### What it cannot cover
+
+Everything here runs against the repository. The ODC side has no local
+representation: the library's blocks, a block's argument expressions, whether a
+library was released, whether a consumer's pin was bumped. A change made through
+Mentor or Service Studio is outside every check above and still has to be
+verified on the running harness. `docs/login-layout.md` records the failure modes
+that only show up there.
 
 ## One caveat worth stating
 
