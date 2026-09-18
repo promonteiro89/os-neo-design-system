@@ -51,6 +51,19 @@ CORE = {
     'wizard', 'counter', 'feedback-message', 'notification', 'not-valid',
     'placeholder', 'heading1', 'heading2', 'heading3', 'heading4', 'title',
     'section', 'section-index', 'datepicker', 'search',
+
+    # The message ODC renders next to a field whose Valid is False. It arrives
+    # as `<span class="validation-message">` immediately after the input, with
+    # `not-valid` on the input itself. Both halves of that pair matter and only
+    # `form-control`/`not-valid` were here, so the bundle styled the red border
+    # and left the message text completely unstyled — default colour, default
+    # size, inline. The portal's rule is
+    #     .validation-message, span.validation-message
+    #       { display: block; color: var(--helper-text-error);
+    #         font: var(--body-regular-s); margin-top: var(--space-1) }
+    # and `display: block` is load-bearing: ODC emits a span, and an inline box
+    # discards the top margin.
+    'validation-message',
 }
 
 # Referenced by the re-skin but defined nowhere in the portal's own 12
