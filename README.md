@@ -145,7 +145,8 @@ tools/
   build_all.sh             the whole pipeline, in order — this is what you run
   build.py                 split raw CSS -> src/ + dist/ + reference/
   neobase.py               concatenate the layers into dist/neobase.css, with guards
-  test.py                  the regression suite — run this before committing
+  test.py                  the offline regression suite — run before committing
+  test_runtime.py          the same idea against the deployed ODC app
   verify.py                prove src/ and dist/ still equal the original
   collisions.py            regenerate the class-collision report
   osui_reskin.py           extract the portal's OutSystems UI re-skin layer
@@ -341,12 +342,18 @@ this tree was being built.
 
 ## Testing
 
+Two suites, both standard-library Python, both exiting non-zero on failure.
+
 ```bash
-python3 tools/test.py        # nine checks, exits non-zero on failure
-python3 tools/test.py -v     # also list what each check looked at
+python3 tools/test.py          # offline: the repo and the bundle it builds
+python3 tools/test_runtime.py  # online: what the deployed ODC app is serving
 ```
 
-Standard-library Python only. It covers four things:
+Add `-v` to either to list what each check looked at.
+
+### Offline — `tools/test.py`
+
+Nine checks over four things:
 
 | Group | Checks |
 | --- | --- |
@@ -376,14 +383,40 @@ change. The snapshot is taken up front because some checks regenerate the bundle
 as a side effect — the guards live inside `neobase.py` and only run while it
 writes.
 
-### What it cannot cover
+### Online — `tools/test_runtime.py`
 
-Everything here runs against the repository. The ODC side has no local
-representation: the library's blocks, a block's argument expressions, whether a
-library was released, whether a consumer's pin was bumped. A change made through
-Mentor or Service Studio is outside every check above and still has to be
-verified on the running harness. `docs/login-layout.md` records the failure modes
-that only show up there.
+Everything above runs against the repository, and a green repo says nothing
+about whether any of it reached ODC. Every expensive failure on this project has
+lived in that gap: a library published but never *released*, a library released
+but the consumer's pin never bumped, a pin bump silently reverted by a publish
+from a stale session, a theme paste rolled back, a library Image missing so an
+icon resolves to nothing. All of them leave the repo green and the app wrong.
+
+| Check | Catches |
+| --- | --- |
+| pages reachable | a screen that 404s, plus a control that a *missing* screen really does 404 |
+| module manifest | the library stylesheet not referenced by the consumer at all |
+| library CSS matches repo | **the big one** — every selector in `dist/neobase.css` is in what the app serves |
+| CSS assets resolve | an authoring path that was never rewritten, or a library Image that does not exist |
+
+The CSS comparison cannot be a byte or rule-count match, because ODC minifies a
+pasted theme on publish. It normalises away the three transformations that
+matter — combinator spacing, attribute quoting, and rules with identical
+declarations being merged into one comma list — and compares the set of
+individual selectors. On a correctly deployed app the two sides come out exactly
+equal.
+
+The app URL is configuration, not source, the same as the tenant host: copy
+`odc-app.example` to the gitignored `odc-app`, or set `$ODC_APP`.
+
+### The gap that remains
+
+`test_runtime.py` proves what the app *serves*. It does not execute the pages,
+so a component that loads and then misbehaves — a dropdown that will not open, a
+handler bound twice, a focus ring that never appears — is still only caught by
+using it. Closing that needs a headless browser, which would be this repo's
+first dependency. `docs/login-layout.md` records the failure modes that only
+show up there.
 
 ## One caveat worth stating
 
