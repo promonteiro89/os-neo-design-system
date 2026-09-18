@@ -10,3 +10,6 @@ reference/raw/*.prev
 
 # The deployed app URL is configuration, not source — see odc-app.example.
 odc-app
+
+# Playwright is only needed for tools/test_browser.js.
+node_modules/

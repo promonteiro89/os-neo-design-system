@@ -147,6 +147,7 @@ tools/
   neobase.py               concatenate the layers into dist/neobase.css, with guards
   test.py                  the offline regression suite — run before committing
   test_runtime.py          the same idea against the deployed ODC app
+  test_browser.js          browser tests: does each component still work?
   verify.py                prove src/ and dist/ still equal the original
   collisions.py            regenerate the class-collision report
   osui_reskin.py           extract the portal's OutSystems UI re-skin layer
@@ -342,14 +343,19 @@ this tree was being built.
 
 ## Testing
 
-Two suites, both standard-library Python, both exiting non-zero on failure.
+Three suites, each answering a different question, each exiting non-zero on
+failure.
 
 ```bash
 python3 tools/test.py          # offline: the repo and the bundle it builds
-python3 tools/test_runtime.py  # online: what the deployed ODC app is serving
+python3 tools/test_runtime.py  # online:  what the deployed ODC app is serving
+node    tools/test_browser.js  # online:  does each component still work?
 ```
 
-Add `-v` to either to list what each check looked at.
+Add `-v` to any of them to list what each check looked at.
+
+The first two are standard-library Python and need nothing installed. The third
+needs Playwright, which is this repository's only dependency — see below.
 
 ### Offline — `tools/test.py`
 
@@ -409,14 +415,53 @@ equal.
 The app URL is configuration, not source, the same as the tenant host: copy
 `odc-app.example` to the gitignored `odc-app`, or set `$ODC_APP`.
 
-### The gap that remains
+### Browser — `tools/test_browser.js`
 
 `test_runtime.py` proves what the app *serves*. It does not execute the pages,
-so a component that loads and then misbehaves — a dropdown that will not open, a
-handler bound twice, a focus ring that never appears — is still only caught by
-using it. Closing that needs a headless browser, which would be this repo's
-first dependency. `docs/login-layout.md` records the failure modes that only
-show up there.
+so a component that loads and then misbehaves is invisible to it. This one
+drives a real browser:
+
+```bash
+npm install && npx playwright install chromium   # once
+node tools/test_browser.js                       # or: npm test
+node tools/test_browser.js --headed              # watch it happen
+```
+
+| Check | Catches |
+| --- | --- |
+| every screen loads clean | a console error or a failed request on any of the five screens |
+| dropdown opens and closes | the toggle breaking — and, because it must end *closed*, a handler bound twice |
+| dropdown empty state | the portal's two-line "No results found" reverting to OutSystemsUI's one-liner |
+| dropdown keyboard entry | tabbing no longer opening it and landing in the search input |
+| password reveal | the eye not flipping the input between `password` and `text`, on both screens that have one |
+| validation on submit | an empty form no longer marking fields `.not-valid` |
+
+Two selectors look like bugs and are not, so they are asserted deliberately
+rather than normalised away: the password eye is `#PasswordEye` on VerifyEmail
+and `#PasswordEyeIcon` on Login, and the dropdown trigger is **not** a tab stop
+— tabbing into the dropdown lands in its search input, because the component
+opens on focus and hands keyboard control to virtual-select.
+
+Each check was verified by sabotaging the running page from an init script —
+stripping `is--open` as it is applied, rewriting the empty state, swallowing the
+click on the eye, removing `.not-valid` as it is added — and confirming the
+right check failed. Not that *a* check failed: an early version of that harness
+reported four confident detections that were really the sabotage crashing before
+the DOM existed.
+
+### About the dependency
+
+Everything except `test_browser.js` still runs with nothing installed, and
+nothing in the build or the shipped CSS depends on npm. `node_modules/` is
+gitignored; `package.json` carries Playwright as a devDependency. If you do not
+want it, the other two suites remain complete on their own.
+
+### What none of them cover
+
+The library's own internals in ODC — a block's argument expressions, whether a
+library was released, whether a consumer's pin was bumped — have no local
+representation and are not reachable from a browser either.
+`docs/login-layout.md` records the failure modes that only show up there.
 
 ## One caveat worth stating
 
