@@ -10,7 +10,7 @@
    app, where overriding --color-primary and --background-color-primary
    left .btn-primary unchanged at #1068eb.
 
-   429 rules. Vendor internals (flatpickr, vscomp, splide) and the
+   477 rules. Vendor internals (flatpickr, vscomp, splide) and the
    portal's own .ds-* / .fusion-* components are excluded.
    ========================================================================== */
 
@@ -1290,8 +1290,191 @@ span.validation-message {
 .popover-wrapper .popover {
   cursor: pointer;
 }
+.popup-dialog {
+  align-items: center;
+  background-color: transparent;
+  border-radius: 0;
+  border: 0;
+  box-shadow: none;
+  display: flex;
+  height: 100%;
+  justify-content: center;
+  margin: 0;
+  max-height: 100%;
+  max-width: 100%;
+  padding: var(--space-6);
+}
+.popup-background:before {
+  background-color: var(--popup-overlay);
+  content: "";
+  inset: 0;
+  opacity: 1;
+  pointer-events: none;
+  position: fixed;
+  z-index: -1;
+  -webkit-animation-duration: var(--transition-time-s);
+  animation-duration: var(--transition-time-s);
+  -webkit-animation-fill-mode: both;
+  animation-fill-mode: both;
+  -webkit-animation-name: enterOpacity;
+  animation-name: enterOpacity;
+  -webkit-animation-timing-function: var(--transition-curve-linear);
+  animation-timing-function: var(--transition-curve-linear);
+  transform-origin: center top;
+  will-change: transform;
+}
+.popup-content {
+  background-color: var(--surface-1-default);
+  border-radius: var(--border-radius-3);
+  box-shadow: var(--shadow-4);
+  border: 1px solid var(--border-subtle);
+  max-width: 512px;
+  padding: var(--space-6);
+  width: 100%;
+  will-change: transform,opacity;
+  z-index: 100;
+  -webkit-animation-duration: var(--transition-time-s);
+  animation-duration: var(--transition-time-s);
+  -webkit-animation-fill-mode: both;
+  animation-fill-mode: both;
+  -webkit-animation-name: popupEnter;
+  animation-name: popupEnter;
+  -webkit-animation-timing-function: var(--transition-curve-linear);
+  animation-timing-function: var(--transition-curve-linear);
+  transform-origin: center top;
+  will-change: transform;
+}
+.popup-dialog-medium .popup-content {
+  max-width: 768px;
+}
+.popup-dialog-large .popup-content {
+  max-width: 992px;
+}
+.popup-align-top.popup-dialog {
+  align-items: flex-start;
+  padding-top: var(--size-14);
+}
+.popup-dialog-header {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: var(--space-6);
+  position: relative;
+}
+.popup-dialog-header .popup-dialog-header-content {
+  display: flex;
+}
+.popup-dialog-header .popup-dialog-header-title {
+  flex: 1;
+  font: var(--heading-3);
+  padding-right: var(--space-9);
+  color: var(--text-primary);
+  letter-spacing: var(--letter-spacing-1);
+}
+.popup-dialog-header .popup-dialog-header-sub-title {
+  color: var(--text-secondary);
+  margin-top: var(--space-2);
+}
+.popup-dialog-header .popup-dialog-header-sub-title>[class*=text-] {
+  color: inherit;
+}
+.popup-dialog-header .popup-dialog-header-close {
+  line-height: 1;
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+.popup-dialog-footer {
+  display: flex;
+  justify-content: space-between;
+  padding-top: var(--space-6);
+}
 .popup-dialog-footer .btn+.btn {
   margin-left: var(--space-3);
+}
+.popup-dialog-scrollable .popup-content {
+  overflow: hidden;
+  padding: 0;
+}
+.popup-dialog-scrollable .popup-dialog-content {
+  border-top: 1px solid var(--divider-background);
+  max-height: calc(60vh - 100px);
+  overflow-y: auto;
+  padding: var(--space-6);
+  scrollbar-color: var(--scrollbar-thumb-default) transparent;
+  scrollbar-width: thin;
+}
+.popup-dialog-scrollable .popup-dialog-content::-webkit-scrollbar {
+  height: var(--size-4);
+  width: var(--size-4);
+}
+.popup-dialog-scrollable .popup-dialog-content::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+.popup-dialog-scrollable .popup-dialog-content::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb-default);
+  border-radius: var(--border-radius-2);
+}
+.popup-dialog-scrollable .popup-dialog-content::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+.popup-dialog-scrollable .popup-dialog-content-empty .popup-dialog-content {
+  display: none;
+}
+.popup-dialog-scrollable .popup-dialog-header {
+  padding: var(--space-6);
+}
+.popup-dialog-scrollable .popup-dialog-header .popup-dialog-header-close {
+  right: 24px;
+  top: 24px;
+}
+.popup-dialog-scrollable .popup-dialog-footer {
+  border-top: 1px solid var(--divider-background);
+  padding: var(--space-6);
+}
+.popup-has-tabs .popup-dialog-header {
+  padding-bottom: 0;
+}
+.popup-has-tabs .popup-tabs-header {
+  display: flex;
+}
+.popup-has-tabs .popup-tabs-header .btn-popup-header {
+  border: 0;
+  color: var(--tab-text-default);
+  flex: 1;
+  margin: 0;
+  background-color: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+.popup-has-tabs .popup-tabs-header .btn-popup-header:hover {
+  color: var(--tab-text-hover);
+  background-color: transparent;
+}
+.popup-has-tabs .popup-tabs-header .btn-popup-header:after {
+  background-color: var(--tab-border-selected);
+  bottom: 0;
+  content: "";
+  height: 2px;
+  opacity: 0;
+  position: absolute;
+  transform: translateY(0) scaleX(.8);
+  transition: all var(--transition-time-s) var(--transition-curve-linear);
+  width: 100%;
+}
+.popup-has-tabs .popup-tabs-header .btn-popup-header-active {
+  color: var(--tab-text-selected);
+}
+.popup-has-tabs .popup-tabs-header .btn-popup-header-active:after {
+  opacity: 1;
+  transform: translateY(0) scaleX(1);
+}
+.phone .popup-dialog,
+.tablet .popup-dialog {
+  padding: var(--space-4);
+}
+.phone .popup-align-top.popup-dialog,
+.tablet .popup-align-top.popup-dialog {
+  padding-top: var(--space-9);
 }
 .popup-dialog .table .tooltip-wrapper {
   max-width: 430px;
@@ -1310,11 +1493,97 @@ span.validation-message {
   bottom: -14px;
   top: auto;
 }
+.popup-dialog .popup-content .popup-dialog-wrapper .popup-dialog-dirty-shield {
+  background-color: var(--confirmation-message-overlay);
+  display: none;
+  height: 100%;
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 100%;
+}
+.popup-dialog .popup-content .popup-dialog-wrapper .popup-dialog-dirty-footer {
+  align-items: center;
+  background-color: var(--surface-1-default);
+  bottom: 0;
+  display: flex;
+  height: 0;
+  left: 0;
+  overflow: hidden;
+  padding-left: var(--space-6);
+  padding-right: var(--space-6);
+  position: absolute;
+  transform: translateY(100%);
+  transition: transform var(--transition-time-s) var(--transition-curve-base);
+  width: 100%;
+}
 .popup-dialog .popup-content .popup-dialog-wrapper .popup-dialog-dirty-footer .btn {
   margin-left: var(--space-3);
 }
+.popup-dialog .popup-content .popup-dialog-wrapper .popup-dialog-dirty-footer-text {
+  flex: 1;
+}
+.popup-dialog .popup-content .popup-dialog-wrapper .popup-dialog-dirty-footer-buttons {
+  display: flex;
+  flex: 1;
+  justify-content: flex-end;
+}
 .popup-dialog .popup-content .popup-dialog-wrapper.popup-dialog-is-dirty .tabs .tabs-header {
   z-index: auto;
+}
+.popup-dialog .popup-content.popup-dialog-show-dirty-shield .popup-dialog-dirty-footer {
+  height: auto;
+  padding-bottom: var(--space-6);
+  padding-top: var(--space-6);
+  transform: translateY(0);
+}
+.popup-dialog .popup-content.popup-dialog-show-dirty-shield .popup-dialog-dirty-shield {
+  display: block;
+}
+.popup-dialog.popup-nopadding .popup-content {
+  padding: 0;
+}
+.popup-dialog.popup-nopadding .popup-content .popup-dialog-header {
+  padding-left: var(--space-6);
+  padding-right: var(--space-6);
+  padding-top: var(--space-6);
+}
+.popup-dialog.popup-nopadding .popup-content .popup-dialog-footer {
+  padding-bottom: var(--space-6);
+  padding-left: var(--space-6);
+  padding-right: var(--space-6);
+}
+.phone .popup-dialog .popup-content.popup-dialog-show-dirty-shield,
+.tablet .popup-dialog .popup-content.popup-dialog-show-dirty-shield {
+  overflow: hidden;
+}
+.phone .popup-dialog .popup-content .popup-dialog-wrapper .popup-dialog-dirty-footer,
+.tablet .popup-dialog .popup-content .popup-dialog-wrapper .popup-dialog-dirty-footer {
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+}
+.phone .popup-dialog.popup-nopadding .popup-content,
+.tablet .popup-dialog.popup-nopadding .popup-content {
+  padding: 0;
+}
+.phone .popup-dialog.popup-nopadding .popup-dialog-header,
+.tablet .popup-dialog.popup-nopadding .popup-dialog-header {
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+  padding-top: var(--space-4);
+}
+.phone .popup-dialog.popup-nopadding .popup-dialog-footer,
+.tablet .popup-dialog.popup-nopadding .popup-dialog-footer {
+  padding-bottom: var(--space-4);
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+}
+.popup-backdrop {
+  background-color: transparent;
+}
+.phone .popup-dialog,
+.tablet .popup-dialog {
+  align-items: center;
 }
 .radio-button {
   height: var(--size-7);

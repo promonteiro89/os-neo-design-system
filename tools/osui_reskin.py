@@ -48,6 +48,19 @@ ICONS = {
 # :checked:after tick, which have to travel together or the tick lands wrong.
 CORE_ATTRS = ('[data-checkbox]',)
 
+# Class FAMILIES admitted by prefix, where listing every member in CORE would be
+# noise. `popup-` covers the dialog: 48 rules, and they have to travel together.
+#
+# Only `.popup-dialog` and `.popup-backdrop` are OutSystems UI's own — its theme
+# styles both and its JS emits the first. The inner structure (.popup-content,
+# .popup-dialog-header/footer/wrapper, .popup-has-tabs, .popup-tabs-header) is
+# the portal's, built inside the OutSystems UI popup, and is shipped for the
+# same reason the bundle ships the Fusion components: so the markup can be
+# hand-built. Admitting the OutSystems UI half alone would give a dialog that is
+# padded correctly on phone and unstyled everywhere else, which is worse than
+# shipping none of it.
+CORE_PREFIXES = ('popup-',)
+
 # OutSystems UI's own widget classes, i.e. what a consuming app actually renders.
 CORE = {
     'btn', 'btn-primary', 'btn-secondary', 'btn-tertiary', 'btn-group',
@@ -138,7 +151,9 @@ def main():
         cls = set(re.findall(r'\.(-?[A-Za-z_][\w-]*)', prelude))
         if any(c.startswith(('ds-', 'fusion-')) for c in cls):
             continue          # the portal's own components, not an OSUI re-skin
-        if not (cls & CORE) and not any(a in prelude for a in CORE_ATTRS):
+        if (not (cls & CORE)
+                and not any(a in prelude for a in CORE_ATTRS)
+                and not any(c.startswith(CORE_PREFIXES) for c in cls)):
             continue
         if any(p in prelude for p in PORTAL_ONLY):
             continue

@@ -568,6 +568,13 @@ def main():
         (r'min-width:\s*104px', 'dropdown sizing', 1),
         (r'screen-container::-webkit-scrollbar', 'visible scrollbar', 1),
         (r'ThemeGrid_MarginGutter', 'ThemeGrid gutter reset', 1),
+        # Both of these were silently absent for months. osui_reskin.py admits a
+        # rule only if its selector carries a class it recognises, and neither
+        # of these does: `[data-checkbox]` is an attribute, and `.popup-dialog`
+        # was simply not on the list. Desktop looked correct in both cases,
+        # because the rules they override are themselves viewport-scoped.
+        (r'\.tablet \[data-checkbox\]', 'checkbox: viewport override', 1),
+        (r'\.phone \.popup-dialog', 'popup dialog: viewport override', 3),
     )
     bare = re.sub(r'/\*.*?\*/', '', css, flags=re.S)
     missing = []
