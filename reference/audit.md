@@ -1,6 +1,6 @@
 # Audit
 
-Generated on 2026-09-18.
+Generated on 2026-09-20.
 
 Every `var()` reference in the bundle checked against every custom property definition in it.
 
