@@ -1,0 +1,42 @@
+<h3>Beyond sign-in: reset-password, sign-up and verify-email</h3>
+<p>0.2.0 shipped Layout_Login and the sign-in composition. The login layer now covers the three screens that surround it, so an account flow is styled end to end rather than only its front door. All three are built from the same Layout_Login block:</p>
+<ul>
+<li><strong>Reset password</strong> &mdash; Layout_Login with fewer rows. It needs no new classes; it was already possible in 0.2.0 and is called out here because it is part of the same flow.</li>
+<li><strong>Sign up</strong> &mdash; the email step, which is where the new error states earn their keep.</li>
+<li><strong>Verify email</strong> &mdash; the step that needed genuinely new styling.</li>
+</ul>
+<p>What the verify step added:</p>
+<ul>
+<li><strong>A password requirements checklist.</strong> password-analysis-title and password-analysis-requirements, with password-analysis-requirements-item for each line &mdash; a marker and a label, on a 4px rhythm. Put it inside a field marked verify-password-field and it unrolls on :focus-within, a 0.4s max-height transition, so the rules appear while the field is being filled and fold away afterwards.</li>
+<li><strong>The consent row.</strong> verify-consent-row sets the checkbox-and-label rhythm &mdash; 12px type, an 8px gap, and the label free to wrap without dragging the checkbox out of line.</li>
+<li><strong>The password field variant</strong> used on that step, with the reveal icon anchored to the top of the field so a validation message appearing beneath cannot push it out of position.</li>
+</ul>
+<p>As with the password reveal in 0.2.0, the library ships the styling. Which requirements are met, and when, is your logic.</p>
+
+<h3>Form error states</h3>
+<p>Login inputs now have an invalid state: not-valid on a field gives it the error border, and keeps it through hover and focus rather than losing it to the interaction state. Pair it with the validation message and a submit that marks the offending fields.</p>
+
+<h3>The searchable dropdown</h3>
+<p>Most of this release. The dropdown now behaves the way the rest of the system does, rather than looking right and acting differently.</p>
+<ul>
+<li><strong>Keyboard.</strong> It opens when it receives focus and puts the caret in the search box, so arrow keys, type-ahead and Enter are the ones you already know. Tab moves on to the next real field instead of walking the option list, and Escape closes it.</li>
+<li><strong>Focus ring</strong> on the trigger, matching every other focusable control &mdash; and no doubled ring once the panel is open.</li>
+<li><strong>An 8px gap</strong> between the trigger and the option panel.</li>
+<li><strong>A two-line empty state.</strong> "No results found", with a hint line beneath it, instead of a bare one-liner.</li>
+<li><strong>The search icon follows --icon-primary</strong>, so it is legible in light as well as dark.</li>
+</ul>
+<p>Unlike the password reveal, this one ships the behaviour as well as the styling: all 13 OutSystemsUI/Dropdowns client actions work against DropdownField, so DropdownSetValue, DropdownClear, DropdownGetSelectedValues and the rest do what they do on the stock widget.</p>
+<p>The three blocks are DropdownField (the searchable field), DropdownEmpty (a floating menu container for icon-button row actions) and DropdownItem.</p>
+
+<h3>Dialog styling</h3>
+<p>A modal dialog, 48 rules that were previously missing: the overlay and its dimmed backdrop, the card, a header with title, subtitle and close, a footer, the scrollable variant, the tabbed variant, and the "unsaved changes" confirmation layer. Build a dialog with these class names and it picks up the design system instead of rendering unstyled.</p>
+<p>As with the password reveal, the library ships the styling. Opening, closing and what the buttons do are yours.</p>
+
+<h3>Fixes</h3>
+<ul>
+<li>The checkbox no longer changes size between breakpoints. It was 20px on desktop and 32px on tablet and phone, because OutSystems UI enlarges checkboxes for touch at a specificity the token-level rule could not reach. Now 20px throughout, tick still centred.</li>
+<li>The dropdown's search icon was washed out in light mode &mdash; it was drawn as an image with a colour baked in and ignored the icon token.</li>
+</ul>
+
+<h3>One behaviour change</h3>
+<p>DropdownSetValue and DropdownClear default to <strong>not</strong> raising the dropdown's change event, which left the control showing a stale selection after a programmatic change. Both now raise it. If you were relying on the silent behaviour &mdash; setting an initial value without triggering your own OnChange logic, say &mdash; guard that logic rather than the call.</p>
