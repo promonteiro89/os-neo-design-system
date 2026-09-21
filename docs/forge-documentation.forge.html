@@ -1,0 +1,106 @@
+<h3>Before you start</h3>
+<p>Neo Design System requires the TrueShade component. It backs light/dark persistence and the library cannot function without it. Install it first.</p>
+
+<h3>Installation</h3>
+<ol>
+<li>Install TrueShade from Forge.</li>
+<li>Install Neo Design System.</li>
+<li>In your application, add NeoDesignSystem and TrueShade as dependencies.</li>
+<li>Set NeoBase as your application's theme.</li>
+</ol>
+<p>That is the whole setup. There is no OnApplicationReady hook to wire, no body class and no data attribute to set by hand. AppShell handles all of it.</p>
+
+<h3>Building your first screen</h3>
+<p>AppShell is the outermost wrapper. It takes no input parameters and self-initialises: its OnReady places the TrueShade block and starts the shell for you.</p>
+<ol>
+<li>Place AppShell on your screen. It gives you three placeholders: Header, Aside and Content.</li>
+<li>Put ShellHeader in the Header placeholder.</li>
+<li>Put ShellAside in the Aside placeholder.</li>
+<li>Put Layout_Neo in the Content placeholder.</li>
+<li>Build your page inside Layout_Neo's Content placeholder.</li>
+</ol>
+<p>Do not call InitShell yourself when using AppShell. It is already called on ready with the aside expanded.</p>
+<p><strong>ShellHeader placeholders:</strong> Portfolio, PortfolioOverlay, ExpandToggle, Buttons, AdditionalBlocks, Avatar, LoginOverlay.</p>
+<p><strong>ShellAside placeholders:</strong> Primary, Secondary, HeaderIcon, HeaderIconLeft, HeaderTitle, HeaderIconRight. Input: SecondaryOpen (Boolean, default True).</p>
+<p><strong>Layout_Neo placeholders:</strong> Header, TopInfo, Content. Inputs: ScrollType (Text, default "page"), LayoutType (Text), ReserveSidePanelSpace (Boolean).</p>
+
+<h3>Building a sign-in screen</h3>
+<p>Layout_Login is the whole login composition in one block: a centred form column with theme-aware corner artwork, spaced and typed for you in light and dark. Use it on a public screen instead of AppShell, not inside it.</p>
+<p>It takes no input parameters and gives you four placeholders:</p>
+<ul>
+<li><strong>Logo</strong>: your brand mark, or leave it empty and the theme paints a wordmark for the active theme. Fill it and the theme's mark switches itself off, so the two never overlap.</li>
+<li><strong>Title</strong>: heading or account line.</li>
+<li><strong>Content</strong>: your fields, submit button and inline actions.</li>
+<li><strong>Footer</strong>: the sign-up or secondary link line.</li>
+</ul>
+<p>The form is yours, so the block imposes nothing on your authentication. Like AppShell, it places TrueShade itself, so the theme works on a login screen without any extra setup.</p>
+<p>The same block carries the screens either side of sign-in. <strong>Reset password</strong> is Layout_Login with fewer rows and needs nothing extra. <strong>Sign up</strong> and <strong>verify email</strong> have a few classes of their own, below.</p>
+<p><strong>Password reveal.</strong> Add a container with pds-login-password-eye inside a field column marked pds-login-password-field and the icon is positioned, sized and themed. The toggle behaviour is yours to wire: the library ships the styling, not the logic. A few lines in the screen's OnReady that flip the input's type between password and text is all it takes.</p>
+<p><strong>Password requirements.</strong> For the verify-email step, password-analysis-title and password-analysis-requirements, with password-analysis-requirements-item on each line &mdash; a marker and a label, on a 4px rhythm. Put the list inside a field marked verify-password-field and it unrolls on :focus-within over 0.4s, so the rules appear while the field is being filled and fold away afterwards. Which requirements are met, and when, is your logic.</p>
+<p><strong>Consent row.</strong> verify-consent-row sets the checkbox-and-label rhythm: 12px type, an 8px gap, and the label free to wrap without dragging the checkbox out of line.</p>
+<p><strong>Error states.</strong> Add not-valid to a field for the invalid border. It survives hover and focus rather than losing the error colour to the interaction state.</p>
+
+<h3>Sidebar navigation</h3>
+<p>Build the sidebar inside ShellAside's Primary placeholder.</p>
+<p>Use AsideItem for a navigation entry. Inputs: Label, IsActive, Level, IsOpen, HasChildren, HasIcon, ParentId, Section. It raises OnClick. Level 0 is a section header with an optional expand arrow; level 1 is a leaf link.</p>
+<p>Use AsideSection for a collapsible group. It wraps an AsideItem header plus an animated grid that shows and hides its children. Inputs: Label, SectionId, IsOpen, IsActive, HasIcon, Section.</p>
+<p>To control the sidebar from your own code, call ToggleAside. ShellAside adds the is-aside-expanded class to the body automatically.</p>
+
+<h3>Theme switching</h3>
+<p>Neo Design System ships light and dark. TrueShade persists the user's choice and applies it as a data-theme attribute on the root element.</p>
+<ul>
+<li><strong>SetTheme(Theme)</strong>: apply "light", "dark" or "system-default".</li>
+<li><strong>GetTheme()</strong>: returns the scheme actually in effect. "system-default" is resolved to the real operating system preference, so you always get "light" or "dark" back.</li>
+<li><strong>ToggleTheme()</strong>: switch between light and dark.</li>
+<li><strong>UseSystemTheme()</strong>: follow the operating system preference.</li>
+</ul>
+<p>AppShell and Layout_Login both expose an OnThemeChange event with two Text outputs: Raw (what the user selected, which may be "system-default") and Effective (what is actually rendered). Handle it when a component needs to react to a theme change, recolouring a chart for instance.</p>
+<p>InitTheme exists only for backwards compatibility and does nothing once the theme system is initialised. Use AppShell instead.</p>
+
+<h3>Styling standard widgets</h3>
+<p>Most of Neo's surface is CSS classes applied to standard OutSystems widgets, not blocks. Apply these to get Neo styling:</p>
+<ul>
+<li><strong>Button</strong>: btn. Variants: btn btn-primary, btn btn-destructive, btn btn-ghost.</li>
+<li><strong>Input</strong>: form-control. Add not-valid for the validation error state.</li>
+<li><strong>Checkbox</strong>: checkbox. Also takes not-valid. It stays the same size at every breakpoint rather than growing on touch widths.</li>
+<li><strong>Dropdown or Select</strong>: dropdown, on an element carrying the data-dropdown attribute. Variants: dropdown-small, dropdown-large, dropdown-ghost, dropdown-btn.</li>
+<li><strong>Table</strong>: table on the table, table-header on the header row, table-row on data rows.</li>
+</ul>
+
+<h3>Dialogs</h3>
+<p>A dialog is CSS rather than a block, so build it from standard widgets and apply these classes:</p>
+<ul>
+<li>popup-dialog on the full-screen overlay that centres the card, with popup-background for the dimmed backdrop. Size it with popup-dialog-medium or popup-dialog-large.</li>
+<li>popup-content on the card itself.</li>
+<li>popup-dialog-header, with popup-dialog-header-title, popup-dialog-header-sub-title and popup-dialog-header-close.</li>
+<li>popup-dialog-footer for the button row.</li>
+<li>popup-dialog-scrollable when the body scrolls, popup-has-tabs with popup-tabs-header for the tabbed variant, and the popup-dialog-dirty-shield and popup-dialog-dirty-footer pair for an unsaved-changes confirmation.</li>
+</ul>
+<p>As with the password reveal, the library ships the styling. Opening, closing and what the buttons do are yours.</p>
+
+<h3>Ready-made blocks</h3>
+<p>Beyond the shell, Neo Design System ships:</p>
+<ul>
+<li><strong>Layout_Login</strong>: the sign-in layout described above.</li>
+<li><strong>LayoutHeader</strong>: the page header.</li>
+<li><strong>Avatar</strong>: user initials in a coloured circle or square. Inputs: Initials (mandatory), Color, Format, Size, Label.</li>
+<li><strong>Badge</strong>: status badge with semantic colour variants. Inputs: Label (mandatory), Variant (default "neutral").</li>
+<li><strong>SearchInput</strong>: a search-styled input.</li>
+<li><strong>Pagination</strong>: page navigation, with keyboard and screen-reader support.</li>
+<li><strong>DropdownField</strong>: a searchable dropdown field. It opens on focus and puts the caret in its search box, so arrow keys, type-ahead and Enter behave the way they do elsewhere; Tab moves on to the next field rather than into the option list, and Escape closes it. Searching for something absent shows a two-line empty state. Unlike most of the library it ships behaviour as well as styling: all 13 OutSystemsUI/Dropdowns client actions work against it, so DropdownSetValue, DropdownClear and the rest do what they do on the stock widget. Takes OptionalConfigs (AllowMultipleSelection, IsDisabled, NoResultsText, SearchPrompt, NoOptionsText, SanitizeDropdownValues).</li>
+<li><strong>DropdownEmpty</strong> and <strong>DropdownItem</strong>: a floating menu panel and its rows. Keyboard and screen-reader accessible, dismisses on click-outside and on Escape, and positions itself to stay inside the viewport. DropdownEmpty inputs: IsOpen, PopoverWidth, ExtendedClass, TriggerLabel, with Trigger and Content placeholders. DropdownItem input: Title (mandatory).</li>
+<li><strong>Skeleton</strong>, <strong>SkeletonBox</strong> and <strong>SkeletonTable</strong>: loading placeholders.</li>
+<li><strong>Section</strong>: a content section wrapper.</li>
+<li><strong>Icon</strong> and <strong>IconSprite</strong>: the icon set.</li>
+</ul>
+
+<h3>Using design tokens</h3>
+<p>Neo Design System defines 612 design tokens covering colour, typography, spacing and sizing, elevation, motion and layout, with 295 dark-mode overrides.</p>
+<p>Reference them from your own CSS with var(--token-name) rather than hardcoding values. Anything built on the tokens stays correct in both light and dark, and follows the design language when it moves. Tokens are the intended extension point: if a component you need does not ship as a block, build it against the tokens and it will match everything else.</p>
+<p>The login layout adds four of its own that you can override the same way: --login-text-primary, --login-text-secondary, --login-label, --login-link-hover.</p>
+
+<h3>Good to know</h3>
+<ul>
+<li>No right-to-left support.</li>
+<li>This is an early alpha.</li>
+</ul>
