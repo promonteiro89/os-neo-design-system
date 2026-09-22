@@ -119,6 +119,8 @@ behaviour/                 the JS half of components whose CSS is a state contra
   dropdown-empty.js        the dropdown's open/close, positioning, keyboard and
                            OutSystemsUI/Dropdowns client-action bridge
   password-reveal.js       the show/hide password eye
+  theme-paint.js           paints the page background inline before any
+                           stylesheet is live — a Script resource, not OnReady
 templates/
   fusion-layout.html       page scaffold: header, top-info, content, side panel
   portal-shell.html        the complete layout — chrome + scaffold, matches the portal
@@ -261,8 +263,20 @@ CSS states:
 | --- | --- | --- |
 | `behaviour/dropdown-empty.js` | `.dropdown-empty` | open/close, popover positioning, keyboard, and the OutSystemsUI/Dropdowns client-action bridge |
 | `behaviour/password-reveal.js` | `#PasswordEye` | the show/hide password eye |
+| `behaviour/theme-paint.js` | `html` | paints the page background inline until NeoBase is live, then hands back |
 
-In ODC, paste the file into the block's `OnReady` as a JavaScript node. Both scripts
+**`theme-paint.js` is the exception to everything in this section.** It is not an
+`OnReady` node and must not be pasted into one: in ODC it belongs in a library
+**Script** resource, so that it evaluates when the bundle loads. `OnReady` runs
+after the screen has rendered, and being late is the entire bug it fixes —
+reloading with dark stored paints a light page for ~372 ms first. The cause is
+not a late `data-theme` write; the light frame is painted while `data-theme` is
+already `dark`, because NeoBase, the only stylesheet that defines
+`[data-theme="dark"]`, goes live ~125 ms after OutSystemsUI's. An inline style
+is the only write that needs no stylesheet. Measured 372 ms → 8 ms, and it is
+what the ODC Portal itself does. See `docs/theme-flash-on-reload.md`.
+
+For the other two, in ODC, paste the file into the block's `OnReady` as a JavaScript node. Both scripts
 install one delegated listener on `document` and keep no state of their own — state is
 read back from the DOM every time, because ODC re-renders markup freely and rewrites any
 attribute bound to a variable, so a JS flag goes stale behind a re-render while the class

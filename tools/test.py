@@ -349,6 +349,57 @@ def check_behaviour_scripts_are_self_installing(r):
         r.ok('behaviour re-entry guards')
 
 
+def check_theme_paint_colours_match_tokens(r):
+    """behaviour/theme-paint.js hardcodes four colours; they must match the tokens.
+
+    That script paints the page background inline, before any stylesheet is
+    live, which is the only write that can beat NeoBase into the cascade. It
+    therefore cannot read the tokens — it runs before they exist — so the values
+    are literals, and a literal that drifts from the token paints the WRONG
+    colour for a third of a second and then corrects itself. That is precisely
+    the bug the script exists to prevent, wearing a disguise.
+
+    --page-background resolves to --neutral-0 and --text-primary to --neutral-10,
+    each defined once for light (primitives/_palette.css) and once for dark
+    (_dark-theme.css).
+    """
+    script = os.path.join(ROOT, 'behaviour', 'theme-paint.js')
+    if not os.path.isfile(script):
+        r.fail('theme-paint colours', 'behaviour/theme-paint.js is missing')
+        return
+
+    def token(path, name):
+        m = re.search(r'--%s:\s*(#[0-9a-fA-F]{3,8})\s*;' % name,
+                      read(os.path.join(ROOT, path)))
+        return m.group(1).lower() if m else None
+
+    want = {
+        'light': (token('src/00-tokens/primitives/_palette.css', 'neutral-0'),
+                  token('src/00-tokens/primitives/_palette.css', 'neutral-10')),
+        'dark': (token('src/00-tokens/_dark-theme.css', 'neutral-0'),
+                 token('src/00-tokens/_dark-theme.css', 'neutral-10')),
+    }
+    if not all(v for pair in want.values() for v in pair):
+        r.fail('theme-paint colours', 'could not read --neutral-0/--neutral-10 from the tokens')
+        return
+
+    pattern = (r"(light|dark):\s*\{\s*background:\s*'(#[0-9a-fA-F]{3,8})',"
+               r"\s*color:\s*'(#[0-9a-fA-F]{3,8})'")
+    found = {m[0]: (m[1].lower(), m[2].lower())
+             for m in re.findall(pattern, read(script))}
+    if set(found) != {'light', 'dark'}:
+        r.fail('theme-paint colours', 'could not find the PAINT literals in the script')
+        return
+
+    bad = ['%s: script paints %s on %s, tokens say %s on %s'
+           % (k, found[k][1], found[k][0], want[k][1], want[k][0])
+           for k in ('light', 'dark') if found[k] != want[k]]
+    if bad:
+        r.fail('theme-paint colours', '; '.join(bad))
+    else:
+        r.ok('theme-paint colours', 'light %s, dark %s' % (want['light'][0], want['dark'][0]))
+
+
 def check_docs_reference_real_paths(r):
     """Paths named in the README's layout tree must exist.
 
@@ -399,7 +450,8 @@ CHECKS = [
                 check_asset_references,
                 check_bundle_guards]),
     ('behaviour', [check_behaviour_scripts_parse,
-                   check_behaviour_scripts_are_self_installing]),
+                   check_behaviour_scripts_are_self_installing,
+                   check_theme_paint_colours_match_tokens]),
     ('docs', [check_docs_reference_real_paths]),
     ('build', [check_verify_py, check_build_is_reproducible]),
 ]
