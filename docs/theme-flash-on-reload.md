@@ -68,8 +68,17 @@ fails when `ThemePaint` is blocked (mutation-tested).
 
 ## Installing it in another app
 
-A library cannot expose Script elements to its consumers, so there is nothing in
-NeoDesignSystem to point at — which is why the portal keeps a copy in each app.
+NeoDesignSystem holds the canonical copy as the Script `NeoThemePaint`, but apps
+cannot reference it. Setting it public is rejected by ODC's validator:
+
+```
+(Error) Invalid app (type: IScript, location: /NeoDesignSystem/NeoThemePaint)
+The app uses 'Public Property of UI Elements', which is not supported on this version.
+```
+
+So, like the portal, each app keeps its own copy. If a later platform version
+supports public Scripts, flip the library copy to public and have apps reference
+it instead.
 
 1. In the consuming app, create a Script element and paste
    `behaviour/theme-paint.js` into it.
@@ -92,7 +101,8 @@ script goes through `loadResources → scheduleCustomJsLoading`.
 |---|---|---|
 | TrueShade applies the theme at script evaluation | none | setting `data-theme` earlier measured 776 ms vs 784 ms |
 | `color-scheme` from script | none | the canvas is painted before any app code |
-| library Script in `AppShell`/`Layout_Login` `RequiredScripts` | none | downloads at 413 ms, evaluates at 818 ms when the block renders — after first paint |
+| library Script in `AppShell`/`Layout_Login` `RequiredScripts` | none | downloads at 413 ms, evaluates at 818 ms when the block renders — after first paint. Removed from both blocks |
+| make the library's Script public, reference it from the app | rejected | "'Public Property of UI Elements' ... not supported on this version" |
 | paint `html` only | none | `body` computes to `rgb(249,250,251)` at that moment, not the transparent `reset.css` declares, and covers it |
 | paint `html` and `body`, early | 784 → 383 ms | the right idea; the app-level registration is what makes it early in production |
 

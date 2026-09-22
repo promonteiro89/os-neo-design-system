@@ -1,14 +1,15 @@
 /* Theme paint. Canonical source: behaviour/theme-paint.js in the
-   neo-design-system repo.
+   neo-design-system repo. The NeoDesignSystem library holds a copy as the
+   Script `NeoThemePaint`, but NOT PUBLIC - see below - so it is not consumed
+   from there.
 
-   WHERE IT GOES - AND THIS IS THE WHOLE TRICK. In the CONSUMING APP, as a Script
-   element listed in the app root's `RequiredScripts`. Not a block's
-   RequiredScripts, not an OnReady node, not the library.
+   WHERE IT GOES - AND THIS IS THE WHOLE TRICK. In each CONSUMING APP, as a
+   Script element listed in the app root's `RequiredScripts`. Not a block's
+   RequiredScripts, not an OnReady node.
 
-   That is exactly how the ODC Portal does it. Each portal app carries its own
-   copy of a Script called `Layout` (apps.UserScripts.Layout.js,
-   authentication.UserScripts.Layout.js), and the app's compiled bundle index
-   passes it to the Application's initialisation:
+   That is how the ODC Portal does it. Each portal app carries its own Script
+   called `Layout`, listed in its app root's RequiredScripts, and the app's
+   compiled bundle index passes it to the Application's initialisation:
 
        executeRequiredScripts: [ "scripts/apps.UserScripts.Layout.js" ]
 
@@ -19,9 +20,15 @@
                                            (when the block renders; after paint)
        a block's OnReady                   later still
 
-   It cannot live in NeoDesignSystem: a library does not expose Script elements
-   to its consumers, so the app's RequiredScripts has nothing to point at. Copy
-   this file into each app, as the portal does.
+   WHY EACH APP NEEDS ITS OWN COPY. Making the library's copy public, so apps
+   could reference it, is rejected by ODC's validator:
+
+       (Error) Invalid app (type: IScript, location:
+       /NeoDesignSystem/NeoThemePaint) - The app uses 'Public Property of UI
+       Elements', which is not supported on this version.
+
+   If a later platform version supports public Scripts, flip the library copy
+   to public and have apps reference it instead of pasting this.
 
    WHAT IT DOES. Paints the stored theme's page colour inline on <body> (and
    <html>) immediately, so the screen is the right colour from the first frame

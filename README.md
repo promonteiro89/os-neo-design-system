@@ -276,8 +276,11 @@ app carries its own copy of a Script called `Layout`, registered the same way,
 which paints `document.body.style.backgroundColor` from the stored theme. The
 alternatives were measured and are too late — a library block's `RequiredScripts`
 downloads the script with the bundle but evaluates it when the block renders,
-374 ms after first paint — and a library cannot expose Scripts to its consumers,
-so there is no way to point an app at one. See `docs/theme-flash-on-reload.md`.
+374 ms after first paint. NeoDesignSystem keeps the canonical copy as the Script
+`NeoThemePaint`, but it cannot be made public for apps to reference: ODC's
+validator rejects it with *"The app uses 'Public Property of UI Elements', which
+is not supported on this version."* So each app pastes its own copy, as the portal
+does. See `docs/theme-flash-on-reload.md`.
 
 For the other two, in ODC, paste the file into the block's `OnReady` as a JavaScript node. Both scripts
 install one delegated listener on `document` and keep no state of their own — state is
