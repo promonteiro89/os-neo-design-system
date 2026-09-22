@@ -1,0 +1,155 @@
+<!doctype html>
+<!--
+  FOUC lab — reproduces ODC's boot order locally so theme-flash fixes can be
+  tested against real painted frames instead of a live app.
+
+  WHY THIS SHAPE. Measured on the deployed harness, ODC boots like this:
+
+      0ms    index.html arrives. Its <head> links only two tiny platform
+             stylesheets. Nothing of ours, and nothing theme-aware.
+    ~100ms   the platform bootstrap and app bundle load.
+    ~305ms   the runtime INJECTS OutSystemsUI's stylesheet, our NeoBase
+             stylesheet and TrueShade's script. None of them are in the HTML.
+    ~410ms   first paint.
+     later   the screen renders, AppShell's OnReady runs, TrueShade's
+             Initialize() reads localStorage and sets <html data-theme>.
+
+  The gap that matters is between the stylesheets applying and data-theme being
+  set. If the attribute is late, the first painted frame is light.
+
+  Variants are selected with ?fix=... so each candidate is tested against the
+  identical timeline:
+
+    none      today's behaviour: Initialize() runs late, as a block's OnReady
+    selfapply TrueShade applies the persisted theme when its script evaluates
+    head      an inline <head> script, before any stylesheet (TrueShade's own
+              documented remedy, included to see what the ceiling looks like)
+    css       no JS: a prefers-color-scheme fallback for :root:not([data-theme])
+    scheme    css, plus color-scheme so the browser canvas is dark too
+
+  BOOT_DELAY and INIT_DELAY emulate the network and the late OnReady; they are
+  what CPU throttling stretches on the real app.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FOUC lab</title>
+<script>
+  window.__LAB = new URLSearchParams(location.search);
+  window.__t0 = performance.now();
+  var FIX = __LAB.get('fix') || 'none';
+  var THEME = __LAB.get('theme') || 'dark';          // what the user chose
+  try { localStorage.setItem('$OS_lab$layout-theme', THEME); } catch (e) {}
+</script>
+
+<!-- CANDIDATE: head — inline, before any stylesheet. TrueShade's own advice. -->
+<script>
+  if (FIX === 'head' || FIX === 'headscheme') {
+    try {
+      var raw = localStorage.getItem('$OS_lab$layout-theme') || 'system-default';
+      var dark = raw === 'dark' ||
+        (raw === 'system-default' && matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    } catch (e) { document.documentElement.dataset.theme = 'light'; }
+  }
+  // The canvas — the white behind everything — is painted before any stylesheet
+  // applies, so no CSS can reach it. color-scheme set inline is the only thing
+  // that darkens it, which is why this variant exists separately from 'head'.
+  if (FIX === 'headscheme') {
+    try { document.documentElement.style.colorScheme = 'dark'; } catch (e) {}
+  }
+</script>
+
+<!-- CANDIDATES: css / scheme — pure CSS, no JS, so they apply the moment the
+     sheet does. Only correct when the OS preference matches the stored choice,
+     which is why they are tested separately rather than assumed. -->
+<script>
+  if (FIX === 'css' || FIX === 'scheme') {
+    document.write('<style>' +
+      '@media (prefers-color-scheme: dark) {' +
+      '  :root:not([data-theme]) { --neutral-0:#181a1f; --page-background:#181a1f;' +
+      '                            --text-primary:#f9fafb; --color-background-body:#181a1f; }' +
+      '  :root:not([data-theme]) body { background-color:#181a1f; color:#f9fafb; }' +
+      (FIX === 'scheme' ? '  :root:not([data-theme]) { color-scheme: dark; }' : '') +
+      '}' +
+      '</style>');
+  }
+</script>
+
+<style>
+  /* Stands in for the two tiny platform stylesheets ODC links in <head>.
+     Deliberately says nothing about colour — neither does the real pair. */
+  html, body { margin: 0; padding: 0; }
+  #app { min-height: 100vh; font: 16px system-ui, sans-serif; padding: 2rem; }
+</style>
+</head>
+<body>
+<div id="app">FOUC lab</div>
+
+<script>
+(function () {
+  var BOOT_DELAY = +(__LAB.get('boot') || 300);   // when the runtime injects CSS+JS
+  var INIT_DELAY = +(__LAB.get('init') || 250);   // extra wait before OnReady runs
+
+  function inject(tag, attrs) {
+    return new Promise(function (res) {
+      var el = document.createElement(tag);
+      Object.keys(attrs).forEach(function (k) { el[k] = attrs[k]; });
+      el.onload = res; el.onerror = res;
+      document.head.appendChild(el);
+    });
+  }
+
+  setTimeout(async function () {
+    // The runtime injects these; note they are NOT in the HTML, same as ODC.
+    await Promise.all([
+      inject('link', { rel: 'stylesheet', href: 'assets/osui.css' }),
+      inject('link', { rel: 'stylesheet', href: 'assets/neobase.css' }),
+    ]);
+    // CANDIDATES: cssbundle / combo — the prefers-color-scheme fallback shipped
+    // INSIDE our stylesheet, which is the only place ODC lets us put CSS. It
+    // therefore applies when the bundle applies, not in <head>. Tested
+    // separately from 'css' because that one cheated by injecting into <head>,
+    // which a consuming ODC app cannot do.
+    if (FIX === 'cssbundle' || FIX === 'combo') {
+      var st = document.createElement('style');
+      st.textContent =
+        '@media (prefers-color-scheme: dark) {' +
+        '  :root:not([data-theme]) { --neutral-0:#181a1f; --page-background:#181a1f;' +
+        '                            --text-primary:#f9fafb; --color-background-body:#181a1f; }' +
+        '  :root:not([data-theme]) body { background-color:#181a1f; color:#f9fafb; }' +
+        '}';
+      document.head.appendChild(st);
+    }
+
+    await inject('script', { src: 'assets/trueshade.js' });
+
+    // CANDIDATE: selfapply — what TrueShade would do at script-evaluation time.
+    if (FIX === 'selfapply' || FIX === 'combo') {
+      try {
+        var seg = 'lab';
+        var raw = localStorage.getItem('$OS_' + seg + '$layout-theme') || 'system-default';
+        var dark = raw === 'dark' ||
+          (raw === 'system-default' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      } catch (e) {}
+    }
+
+    // Stands in for the screen rendering, then AppShell's OnReady calling
+    // Initialize(). This is the late write that exists today.
+    setTimeout(function () {
+      try { TrueShade.Theme.Initialize('$OS_lab$'); } catch (e) {
+        try {
+          var raw = localStorage.getItem('$OS_lab$layout-theme') || 'system-default';
+          var dark = raw === 'dark' ||
+            (raw === 'system-default' && matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        } catch (e2) {}
+      }
+      document.documentElement.setAttribute('data-lab-settled', '1');
+    }, INIT_DELAY);
+  }, BOOT_DELAY);
+})();
+</script>
+</body>
+</html>

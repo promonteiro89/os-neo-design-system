@@ -13,3 +13,6 @@ odc-app
 
 # Playwright is only needed for tools/test_browser.js.
 node_modules/
+
+# The FOUC lab assembles its vendor assets on demand; they are not source.
+tools/fouc-lab/assets/
