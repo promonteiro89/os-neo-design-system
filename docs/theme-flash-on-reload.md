@@ -78,6 +78,44 @@ Two shapes are worth trying, in this order:
    resolves to dark. This is what was measured, so it is known to work, but it
    duplicates a colour that otherwise lives only in the tokens.
 
+## What the ODC Portal does
+
+The portal does not flash, and this is why. Its `index.html` is the *same shape
+as ours* — the same four platform scripts and two platform stylesheets, with
+byte-identical hashes, and no inline theme script. It has our constraint
+exactly. What it does instead, observed on its public login page (no sign-in
+needed, so this is reproducible by anyone):
+
+```
+  216ms  body style=null                                  data-theme=null
+  306ms  body style=background-color: rgb(10, 20, 30);    data-theme=null    <- only _Basic is live
+  429ms  (its nine design-system stylesheets go live)
+  640ms  body style=--viewport-height: 500px;             data-theme=dark    <- inline background removed
+```
+
+**It paints the page background as an inline style on `<body>` before any of
+its own stylesheets are live and before `data-theme` is set, then removes that
+inline property once the stylesheets and the attribute are in place.** The
+removal is in its bundle verbatim:
+
+```js
+document.body.style.removeProperty("background-color")
+```
+
+The colour is written before the theme is resolved — the same
+`rgb(10, 20, 30)` under a light OS and a dark one, with nothing in storage — so
+it is a fixed background, not a resolved one, handed over to CSS the moment CSS
+can take it.
+
+This is the `patch+inline` row of the table above, which is the candidate that
+took the light frame from 372 ms to 8 ms. The portal is not doing something
+unavailable to us; it is doing the one thing that works.
+
+Two things this is *not*: it is not the service worker replaying a cached shell
+(a cold profile with no worker installed shows the same inline write), and it is
+not a platform feature — the platform bootstrap is 618 bytes and contains no
+such write.
+
 ## What cannot be fixed at all
 
 A pure white canvas precedes every stylesheet — **~370 ms on the harness,
