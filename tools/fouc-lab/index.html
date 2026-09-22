@@ -39,6 +39,7 @@
   window.__t0 = performance.now();
   var FIX = __LAB.get('fix') || 'none';
   var THEME = __LAB.get('theme') || 'dark';          // what the user chose
+  // Key must match what TrueShade derives from the first path segment (/lab/).
   try { localStorage.setItem('$OS_lab$layout-theme', THEME); } catch (e) {}
 </script>
 
@@ -103,8 +104,8 @@
   setTimeout(async function () {
     // The runtime injects these; note they are NOT in the HTML, same as ODC.
     await Promise.all([
-      inject('link', { rel: 'stylesheet', href: 'assets/osui.css' }),
-      inject('link', { rel: 'stylesheet', href: 'assets/neobase.css' }),
+      inject('link', { rel: 'stylesheet', href: '/lab/assets/osui.css' }),
+      inject('link', { rel: 'stylesheet', href: '/lab/assets/neobase.css' }),
     ]);
     // CANDIDATES: cssbundle / combo — the prefers-color-scheme fallback shipped
     // INSIDE our stylesheet, which is the only place ODC lets us put CSS. It
@@ -122,7 +123,7 @@
       document.head.appendChild(st);
     }
 
-    await inject('script', { src: 'assets/trueshade.js' });
+    await inject('script', { src: FIX === 'patched' ? '/lab/assets/trueshade-patched.js' : '/lab/assets/trueshade.js' });
 
     // CANDIDATE: selfapply — what TrueShade would do at script-evaluation time.
     if (FIX === 'selfapply' || FIX === 'combo') {

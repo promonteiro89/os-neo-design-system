@@ -59,7 +59,12 @@ const TYPES = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascrip
 function serve() {
   return new Promise((resolve) => {
     const s = http.createServer((req, res) => {
-      const rel = decodeURIComponent(req.url.split('?')[0]).replace(/^\/+/, '') || 'index.html';
+      // Served under /lab/ on purpose: TrueShade derives its storage key from
+      // the FIRST path segment, exactly as ODC's /<AppName>/ gives the app name.
+      // Serving at the root made that segment "index.html" and the key wrong,
+      // which silently defeated the patch under test.
+      let rel = decodeURIComponent(req.url.split('?')[0]).replace(/^\/+/, '');
+      rel = rel.replace(/^lab\/?/, '') || 'index.html';
       const file = path.join(ROOT, rel);
       if (!file.startsWith(ROOT) || !fs.existsSync(file)) { res.writeHead(404); return res.end(); }
       res.writeHead(200, { 'content-type': TYPES[path.extname(file)] || 'application/octet-stream' });
@@ -95,7 +100,7 @@ async function runVariant(browser, decoder, fix, cpu, os) {
   const page = await browser.newPage({ viewport: { width: 500, height: 400 }, colorScheme: os });
   const cdp = await page.context().newCDPSession(page);
   const BOOT = process.env.LAB_BOOT || '300';
-  await page.goto(`http://localhost:${PORT}/index.html?fix=${fix}&theme=dark&boot=${BOOT}&init=${process.env.LAB_INIT||'250'}`);
+  await page.goto(`http://localhost:${PORT}/lab/index.html?fix=${fix}&theme=dark&boot=${BOOT}&init=${process.env.LAB_INIT||'250'}`);
   await page.waitForSelector('html[data-lab-settled]', { timeout: 15000 }).catch(() => {});
 
   const frames = [];
@@ -133,7 +138,7 @@ async function runVariant(browser, decoder, fix, cpu, os) {
 
   for (const os of ['light', 'dark']) {
     console.log(`\n  --- operating system preference: ${os} ---`);
-    for (const fix of ['none', 'selfapply', 'cssbundle', 'combo', 'headscheme']) {
+    for (const fix of ['none', 'patched', 'headscheme']) {
       const r = await runVariant(browser, decoder, fix, cpu, os);
       const trail = r.seq.map((f) => `${f.rgb}@${f.t}ms`).join('  ->  ');
       console.log(`  ${fix.padEnd(11)} light frame: ${r.flashed ? 'YES' : 'no '}   ${trail}`);

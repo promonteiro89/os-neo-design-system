@@ -597,6 +597,80 @@ async function checkShellChrome(context, base) {
   });
 }
 
+
+/**
+ * Reloading with dark stored must never paint a light frame.
+ *
+ * The theme is applied by JavaScript. If that write lands after the stylesheets
+ * apply, the page paints in light and then flips — the flash this guards.
+ *
+ * It reads PAINTED FRAMES, not getComputedStyle. Computed style reports values
+ * the browser never paints: an earlier investigation of this bug reached the
+ * wrong conclusion twice by polling it. Frames are what a person actually sees.
+ *
+ * The white canvas that precedes every stylesheet is NOT a failure here. It
+ * cannot be fixed from inside an ODC app — the generated index.html carries
+ * nothing app-controlled — so this asserts only that the design system's own
+ * light page background never reaches the screen while dark is stored.
+ */
+async function checkNoThemeFlash(context, base) {
+  const LIGHT_PAGE = '249,250,251';        // --page-background, light
+  await check('dark reload paints no light frame', async () => {
+    const page = await context.newPage();
+    await page.setViewportSize({ width: 500, height: 400 });
+    await page.goto(`${base}/Home`, { waitUntil: 'networkidle', timeout: 45000 });
+
+    const key = await page.evaluate(() => {
+      const seg = location.pathname.split('/').filter(Boolean)[0] || '';
+      return '$OS_' + seg + '$layout-theme';
+    });
+    await page.evaluate((k) => localStorage.setItem(k, 'dark'), key);
+    await page.reload({ waitUntil: 'networkidle', timeout: 45000 });
+
+    const cdp = await context.newCDPSession(page);
+    const frames = [];
+    cdp.on('Page.screencastFrame', async (f) => {
+      frames.push(f.data);
+      try { await cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }); } catch (e) {}
+    });
+    // Throttled so the window a fast machine would hide is actually observable.
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+    await cdp.send('Page.startScreencast', { format: 'png', everyNthFrame: 1 });
+    await page.reload({ waitUntil: 'networkidle', timeout: 45000 });
+    await page.waitForTimeout(600);
+    await cdp.send('Page.stopScreencast').catch(() => {});
+
+    // Node cannot decode PNG, so hand each frame to a blank page and read it
+    // back through a canvas.
+    const decoder = await context.newPage();
+    await decoder.goto('about:blank');
+    const colours = await decoder.evaluate((list) => Promise.all(list.map((d) => new Promise((res) => {
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        c.width = img.width; c.height = img.height;
+        const g = c.getContext('2d');
+        g.drawImage(img, 0, 0);
+        const [r, gg, b] = g.getImageData(Math.floor(img.width / 2),
+                                          Math.floor(img.height * 0.6), 1, 1).data;
+        res(`${r},${gg},${b}`);
+      };
+      img.onerror = () => res('decode-error');
+      img.src = 'data:image/png;base64,' + d;
+    }))), frames);
+    await decoder.close();
+    await page.close();
+
+    assert(colours.length > 0, 'no frames were captured');
+    const seq = colours.filter((c, i) => i === 0 || c !== colours[i - 1]);
+    const flashed = colours.filter((c) => c === LIGHT_PAGE).length;
+    assert(flashed === 0,
+           `${flashed} frame(s) painted the light page background while dark was `
+           + `stored — sequence: ${seq.join(' -> ')}`);
+    return `${colours.length} frames, none light (${seq.join(' -> ')})`;
+  });
+}
+
 // ---------------------------------------------------------------------------
 
 (async () => {
@@ -632,6 +706,7 @@ async function checkShellChrome(context, base) {
 
   console.log('\ntheme');
   await checkDarkTheme(context, base);
+  await checkNoThemeFlash(context, base);
 
   console.log('\nforms');
   await checkPasswordReveal(context, base, 'Login');
