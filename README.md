@@ -276,6 +276,13 @@ already `dark`, because NeoBase, the only stylesheet that defines
 is the only write that needs no stylesheet. Measured 372 ms → 8 ms, and it is
 what the ODC Portal itself does. See `docs/theme-flash-on-reload.md`.
 
+In ODC it is the `NeoThemePaint` **Script** element, attached to both `AppShell`
+and `Layout_Login` through each block's `RequiredScripts` property — that is what
+gets it into the consuming app's bundle, and it is how TrueShade's own script
+arrives too. Both blocks need it: login screens use `Layout_Login` rather than
+`AppShell`. A Script that is not attached to anything is not bundled at all, and
+`Public` is not a supported flag on a Script in this library version.
+
 For the other two, in ODC, paste the file into the block's `OnReady` as a JavaScript node. Both scripts
 install one delegated listener on `document` and keep no state of their own — state is
 read back from the DOM every time, because ODC re-renders markup freely and rewrites any
