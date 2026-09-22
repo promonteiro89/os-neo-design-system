@@ -16,6 +16,14 @@
  *
  * Frames arrive as base64 PNGs, which Node cannot decode on its own, so each is
  * handed to a second page and read back through a canvas.
+ *
+ * WHAT THIS LAB CANNOT REPRODUCE. It loads ONE small stylesheet, which is live
+ * the moment it arrives. Real ODC loads several, and NeoBase — the only one
+ * that defines [data-theme="dark"] — goes live ~125ms after OutSystemsUI's.
+ * That window, in which the attribute is set but no rule reads it, does not
+ * exist here, so this lab overstates what an earlier data-theme write buys you.
+ * Use tools/fouc-lab/run-odc.js for that question; see
+ * docs/theme-flash-on-reload.md.
  */
 
 'use strict';
