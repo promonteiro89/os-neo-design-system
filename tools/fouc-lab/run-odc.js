@@ -1,26 +1,23 @@
 #!/usr/bin/env node
 /**
- * Frame-capture measurement against a REAL deployed ODC app.
+ * Frame-capture measurement of the theme flash against a REAL deployed ODC app.
  *
- *     node tools/fouc-lab/run-odc.js https://<host>/ThemeFlashLab [cpuThrottle] [repeats]
+ *     node tools/fouc-lab/run-odc.js https://<host>/NeoLayoutCheck/Home [cpu] [repeats]
  *
- * tools/fouc-lab/run.js reconstructs ODC's boot order locally from measurements;
- * this runs the same measurement inside ODC itself, so the bundle sizes, the
- * injection timing and the OnReady latency are the platform's own.
+ * tools/fouc-lab/run.js reconstructs ODC's boot order locally; this runs inside
+ * ODC, so the bundle sizes, the injection timing and the OnReady latency are the
+ * platform's own. That distinction mattered: the local lab and the platform
+ * disagreed, and the platform was right. See docs/theme-flash-on-reload.md.
  *
- * A/B ON ONE APP, ONE LINE APART. Comparing a patched app against an unpatched
- * app would compare two different apps. Instead this loads ONE app twice and
- * intercepts TrueShade's script on the wire: the "patched" run inserts the
- * candidate line into the response body, the "unpatched" run serves it
- * untouched. Everything else — the app, the CSS, the bundle, ODC's boot order —
- * is byte-identical between the two runs.
+ * A/B ON ONE APP. Comparing a fixed app against an unfixed app compares two
+ * apps. Instead this loads ONE app twice and intercepts NeoDesignSystem's
+ * `NeoThemePaint` script on the wire: the "with" run serves it untouched, the
+ * "without" run serves an empty body. Everything else — the app, the CSS, the
+ * bundle, ODC's boot order — is byte-identical between the two runs.
  *
- * If the app is already pinned to a patched library revision the interception
- * is a no-op for the patched run and a removal for the unpatched one; either
- * direction is handled, and the run asserts which one it took.
- *
- * As in run.js, the verdict comes from PAINTED FRAMES. getComputedStyle reports
- * states the browser never paints, and gave the opposite answer once already.
+ * THE VERDICT COMES FROM PAINTED FRAMES. getComputedStyle reports states the
+ * browser never paints and gave the opposite answer once already in this
+ * investigation.
  */
 
 'use strict';
@@ -35,74 +32,21 @@ if (!BASE) {
 const CPU = Number(process.argv[3] || 4);
 const REPEATS = Number(process.argv[4] || 5);
 
-/** Matches the URL ODC serves the library's script at, query string and all. */
-const TRUESHADE_JS = /TrueShade[^/]*\.js(\?|$)/i;
-
-/** The candidate line, and the anchor it is inserted after. */
-const CALL = 'applyTheme(ensureSeeded());';
-const ANCHOR = /(Theme\.GetStorageKey\s*=\s*getStorageKey;)/;
-
-function patch(body) {
-  if (body.includes(CALL)) return { body, state: 'already-patched' };
-  if (!ANCHOR.test(body)) return { body, state: 'anchor-missing' };
-  return { body: body.replace(ANCHOR, `$1\ntry { ${CALL} } catch (_) { }`), state: 'patched-on-wire' };
-}
-
-/**
- * Candidate 2: the patch, plus a `color-scheme` write on the root element.
- *
- * The pure-white canvas is painted by the browser before any stylesheet
- * applies, so no CSS rule can reach it. `color-scheme` set from script can —
- * but only if the script evaluates before that first paint. Whether it does is
- * exactly what this variant measures.
- */
-function patchScheme(body) {
-  const base = patch(body);
-  if (base.state === 'anchor-missing') return base;
-  const call = "try { var _r = resolve(ensureSeeded()); document.documentElement.style.colorScheme = _r; } catch (_) { }";
-  return { body: base.body.replace(ANCHOR, `$1\n${call}`), state: base.state + '+scheme' };
-}
-
-/**
- * Candidate 3: the patch, plus an INLINE background on the root element.
- *
- * Why this exists. Measurement showed the light frame is painted while
- * data-theme is ALREADY dark, because the only stylesheet that knows what
- * [data-theme="dark"] means — NeoBase — is not yet live, while OutSystemsUI's
- * light background is. Setting the attribute earlier therefore cannot help.
- * An inline style needs no stylesheet at all, so it is the only write that can
- * beat the cascade. Injected here for measurement; the fix itself belongs in
- * the design system, which is what knows these colours.
- */
-function patchInline(body) {
-  const base = patch(body);
-  if (base.state === 'anchor-missing') return base;
-  const call = "try { if (resolve(ensureSeeded()) === 'dark') {" +
-    " var s = document.createElement('style');" +
-    " s.textContent = 'html,body{background-color:#181a1f !important;color:#f9fafb}';" +
-    " document.head.appendChild(s);" +
-    " document.documentElement.style.colorScheme = 'dark'; } } catch (_) { }";
-  return { body: base.body.replace(ANCHOR, `$1\n${call}`), state: base.state + '+inline' };
-}
-
-function unpatch(body) {
-  if (!body.includes(CALL)) return { body, state: 'already-unpatched' };
-  return { body: body.split(CALL).join('/* removed for baseline */;'), state: 'unpatched-on-wire' };
-}
+/** The URL ODC serves the script at, query string and all. */
+const THEME_PAINT_JS = /NeoThemePaint[^/]*\.js(\?|$)/i;
 
 /**
  * TWO DISTINCT LIGHT WINDOWS, MEASURED SEPARATELY.
  *
  *   canvas  pure white (255,255,255) — the browser's own canvas, painted before
- *           any stylesheet has applied. No CSS and no JS inside the app can
- *           reach it; only an inline <head> script setting color-scheme can,
- *           and ODC's generated index.html has nowhere to put one. The patch
- *           is not expected to move this number, and reporting it mixed in
- *           with the next one would hide whether the patch did anything.
+ *           any stylesheet has applied. Nothing in an ODC app can reach it: the
+ *           generated index.html carries only platform files, so at that point
+ *           no app or library code exists yet. Reporting it mixed in with the
+ *           next number would hide whether the fix did anything.
  *
- *   page    the app's own light page background — the stylesheets have applied
- *           but data-theme has not been set yet. THIS is the window the patch
- *           exists to close, and the only number the comparison turns on.
+ *   page    the app's own light page background — stylesheets have applied but
+ *           the dark theme has not. THIS is the window the fix exists to close,
+ *           and the only number the comparison turns on.
  */
 const WHITE = '255,255,255';
 const isPageLight = (rgb) => {
@@ -138,22 +82,20 @@ function window_(seq, pred) {
   return ms;
 }
 
-async function run(browser, decoder, { transform, os }) {
+async function run(browser, decoder, { disable, os }) {
   const context = await browser.newContext({ viewport: { width: 600, height: 500 }, colorScheme: os });
   const page = await context.newPage();
 
-  let state = null;
-  await page.route(TRUESHADE_JS, async (route) => {
+  let served = false;
+  await page.route(THEME_PAINT_JS, async (route) => {
+    served = true;
     const res = await route.fetch();
-    const out = transform(await res.text());
-    state = out.state;
-    await route.fulfill({ response: res, body: out.body });
+    await route.fulfill({ response: res, body: disable ? '/* disabled for baseline */' : await res.text() });
   });
 
-  // First load: let the app boot, then store the dark preference. Prefer
-  // clicking the app's own control, so the storage key is TrueShade's rather
-  // than one guessed here; fall back to deriving the key the way TrueShade
-  // does for apps that expose no such button.
+  // Store the dark preference the way a user would where the app offers a
+  // control, otherwise derive the key as TrueShade does: the first path
+  // segment, since ODC's /<AppName>/ gives the app name.
   await page.goto(BASE, { waitUntil: 'networkidle' });
   const darkButton = page.getByRole('button', { name: /^Dark$/i });
   if (await darkButton.count()) {
@@ -188,7 +130,7 @@ async function run(browser, decoder, { transform, os }) {
 
   const seq = [];
   for (const f of read) if (!seq.length || seq[seq.length - 1].rgb !== f.rgb) seq.push(f);
-  return { seq, state, canvasMs: window_(seq, (c) => c === WHITE), pageMs: window_(seq, isPageLight) };
+  return { seq, served, canvasMs: window_(seq, (c) => c === WHITE), pageMs: window_(seq, isPageLight) };
 }
 
 const median = (xs) => {
@@ -202,24 +144,23 @@ const median = (xs) => {
   await decoder.goto('about:blank');
 
   console.log(`painted frames, CPU x${CPU}, ${REPEATS} reloads per cell, stored choice = dark\n  ${BASE}\n`);
-  console.log('  canvas = pure white before any stylesheet (no fix can reach it)');
-  console.log('  page   = the app\'s light background before data-theme is set (what the patch targets)\n');
+  console.log('  canvas = pure white before any stylesheet (unreachable from an ODC app)');
+  console.log('  page   = the light page background before the theme applies (what NeoThemePaint closes)\n');
 
   for (const os of ['light', 'dark']) {
     console.log(`  --- operating system preference: ${os} ---`);
-    for (const [label, transform] of [['unpatched', unpatch], ['patched', patch], ['patch+scheme', patchScheme], ['patch+inline', patchInline]]) {
+    for (const [label, disable] of [['without', true], ['with', false]]) {
       const canvas = [], pageW = [];
-      let state = null, last = null;
+      let last = null;
       for (let i = 0; i < REPEATS; i++) {
-        const r = await run(browser, decoder, { transform, os });
-        if (r.state === null) throw new Error('TrueShade\'s script was never requested — wrong URL, or the app does not use it');
-        if (String(r.state).startsWith('anchor-missing')) throw new Error('the served script has no `Theme.GetStorageKey = getStorageKey;` to insert after');
-        state = r.state; last = r.seq;
+        const r = await run(browser, decoder, { disable, os });
+        if (!r.served) throw new Error('NeoThemePaint was never requested — the app is not on a library revision that ships it');
+        last = r.seq;
         canvas.push(r.canvasMs); pageW.push(r.pageMs);
       }
-      console.log(`  ${label.padEnd(12)} [${state.padEnd(24)}] canvas ${String(median(canvas)).padStart(4)}ms   page ${String(median(pageW)).padStart(4)}ms` +
+      console.log(`  NeoThemePaint ${label.padEnd(8)} canvas ${String(median(canvas)).padStart(4)}ms   page ${String(median(pageW)).padStart(4)}ms` +
                   `   (page runs: ${pageW.join(', ')})`);
-      console.log(`  ${' '.repeat(12)}  last trail: ${last.map((f) => `${f.rgb}@${f.t}ms`).join('  ->  ')}`);
+      console.log(`  ${' '.repeat(22)}last trail: ${last.map((f) => `${f.rgb}@${f.t}ms`).join('  ->  ')}`);
     }
     console.log('');
   }
