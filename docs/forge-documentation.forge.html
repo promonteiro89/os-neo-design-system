@@ -7,6 +7,7 @@
 <li>Install Neo Design System.</li>
 <li>In your application, add NeoDesignSystem and TrueShade as dependencies.</li>
 <li>Set NeoBase as your application's theme.</li>
+<li>Add the ThemePaint script to your application, as described under Dark mode without the flash. It is optional, but without it a reload in dark mode shows the light theme for about a third of a second.</li>
 </ol>
 <p>That is the whole setup. There is no OnApplicationReady hook to wire, no body class and no data attribute to set by hand. AppShell handles all of it.</p>
 
@@ -56,6 +57,16 @@
 </ul>
 <p>AppShell and Layout_Login both expose an OnThemeChange event with two Text outputs: Raw (what the user selected, which may be "system-default") and Effective (what is actually rendered). Handle it when a component needs to react to a theme change, recolouring a chart for instance.</p>
 <p>InitTheme exists only for backwards compatibility and does nothing once the theme system is initialised. Use AppShell instead.</p>
+
+<h3>Dark mode without the flash</h3>
+<p>The theme is applied by the shell once the screen renders, so a reload in dark mode briefly paints the light theme first. The ODC Portal avoids this with a small script that runs when the application starts, before any screen loads, and paints the page in the stored theme's colour. ThemePaint is the same script for Neo Design System.</p>
+<ol>
+<li>In your application, create a Script element named ThemePaint and paste the ThemePaint script into it.</li>
+<li>Select the application itself (the root of the tree, not a screen or block) and add ThemePaint to its <strong>Required Scripts</strong>.</li>
+<li>Publish.</li>
+</ol>
+<p>It has to live in your application because a library cannot share scripts with the applications that use it, which is also why each ODC Portal application carries its own copy. Attaching it to a screen or block instead does not work: those scripts run when the block renders, which is after the page has already painted.</p>
+<p>The script reads the same stored preference as TrueShade, follows the operating system when the choice is system default, and hands control back to the stylesheets on its own once the theme is applied, so there is nothing else to wire.</p>
 
 <h3>Styling standard widgets</h3>
 <p>Most of Neo's surface is CSS classes applied to standard OutSystems widgets, not blocks. Apply these to get Neo styling:</p>

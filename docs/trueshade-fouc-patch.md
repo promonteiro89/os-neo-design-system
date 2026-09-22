@@ -11,13 +11,10 @@ that applies the stored theme at script-evaluation time instead of waiting for
         } catch (_) { }
 ```
 
-**Measured against real ODC, it does not fix the reload flash.** Median light
-frame on `NeoLayoutCheck/Home`, four reloads per cell: 372 ms unpatched,
-367 ms patched. The light frame is painted while `data-theme` is *already*
-`dark`, because NeoBase's stylesheet — the only sheet that knows what
-`[data-theme="dark"]` means — is not live yet.
-
-The full measurement, and the change that does work, are in
+**Measured against real ODC, it does not fix the reload flash** — setting
+`data-theme` earlier measured 776 ms of light screen against a 784 ms baseline.
+What works is what the ODC Portal does: a Script in the consuming app's root
+`RequiredScripts` that paints `<body>` at app init. See
 [theme-flash-on-reload.md](theme-flash-on-reload.md).
 
 ## Should it be applied anyway?

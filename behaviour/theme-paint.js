@@ -1,41 +1,38 @@
 /* Theme paint. Canonical source: behaviour/theme-paint.js in the
    neo-design-system repo.
 
-   UNLIKE THE OTHER TWO FILES HERE, THIS IS NOT AN OnReady NODE, AND IT IS NOT A
-   BLOCK'S RequiredScripts EITHER. Both run too late. Measured on the harness, a
-   script attached through a block's RequiredScripts downloads with the bundle at
-   413ms but does not EVALUATE until 818ms, when the block renders - 374ms after
-   first paint. It must evaluate when the bundle evaluates.
+   WHERE IT GOES - AND THIS IS THE WHOLE TRICK. In the CONSUMING APP, as a Script
+   element listed in the app root's `RequiredScripts`. Not a block's
+   RequiredScripts, not an OnReady node, not the library.
 
-   WHAT IT FIXES. Reloading with dark stored shows a light screen for ~780ms.
-   Roughly half of that is reachable and half is not:
+   That is exactly how the ODC Portal does it. Each portal app carries its own
+   copy of a Script called `Layout` (apps.UserScripts.Layout.js,
+   authentication.UserScripts.Layout.js), and the app's compiled bundle index
+   passes it to the Application's initialisation:
 
-     ~145 - 528ms   pure white, before any stylesheet applies. Nothing in an ODC
-                    app can reach it: the generated index.html carries only
-                    platform files, so no app or library code exists yet.
-     ~528 - 920ms   the light theme, painted because `data-theme` is not set
-                    until the shell's OnReady. THIS is what this script closes,
-                    to ~17ms.
+       executeRequiredScripts: [ "scripts/apps.UserScripts.Layout.js" ]
 
-   WHY A STYLE ELEMENT AND NOT AN INLINE STYLE ON `html`. The first version of
-   this painted `document.documentElement` inline, because 01-base/reset.css
-   puts `background-color: var(--page-background)` on `html` and declares `body`
-   transparent. It had NO measurable effect. `body` is not transparent at that
-   moment: its computed background is rgb(249,250,251) at 441ms, so it covers
-   the html paint completely. Paint both, and `!important` because the rule
-   being overridden is a stylesheet rule, not an inline one.
+   so it runs at app init, before any screen loads and before the stylesheets
+   are live. Measured on the harness, the alternatives are too late:
 
-   A style element also works before `<body>` exists, which an inline write on
-   `document.body` would not.
+       a library block's RequiredScripts   downloads 413ms, EVALUATES 818ms
+                                           (when the block renders; after paint)
+       a block's OnReady                   later still
 
-   WHY NOT JUST SET `data-theme` EARLY. Measured: no effect at all (776ms vs a
-   784ms baseline). The stylesheet that reads it is live, but the screen is light
-   for reasons that resolve later regardless. Only painting closes the window.
+   It cannot live in NeoDesignSystem: a library does not expose Script elements
+   to its consumers, so the app's RequiredScripts has nothing to point at. Copy
+   this file into each app, as the portal does.
 
-   This is what the ODC Portal does: its index.html is the same shape as ours,
-   and it paints `background-color` on its body while only the platform
-   stylesheet is live, then removes the property once its own stylesheets and
-   `data-theme` are in place. See docs/theme-flash-on-reload.md. */
+   WHAT IT DOES. Paints the stored theme's page colour inline on <body> (and
+   <html>) immediately, so the screen is the right colour from the first frame
+   the stylesheets would otherwise paint light, then hands back to the
+   stylesheets once they can take over.
+
+   WHY `body`. The first version of this painted <html> only, because
+   01-base/reset.css paints html and declares body transparent. It did nothing:
+   body's computed background at that moment is rgb(249,250,251), which covered
+   the html paint completely. The portal paints body. `important` because the
+   rule being beaten is a stylesheet rule the page may mark !important. */
 
 (function () {
     'use strict';
@@ -45,19 +42,19 @@
     root.dataset.neoThemePaint = '1';
 
     /* Must match src/00-tokens: --page-background resolves to --neutral-0 and
-       --text-primary to --neutral-10. tools/test.py asserts these against the
-       token files, because a silent drift here paints the wrong colour for half
-       a second and then corrects itself, which is this bug in disguise. */
+       --text-primary to --neutral-10. The portal's own script uses the same two
+       page colours (#F9FAFB / #181A1F). tools/test.py asserts these against the
+       token files: a drifted literal paints the wrong colour for half a second
+       and then corrects itself, which is this bug in disguise. */
     var PAINT = {
         light: { background: '#f9fafb', color: '#181a1f' },
         dark: { background: '#181a1f', color: '#f9fafb' }
     };
 
-    /* TrueShade's own key if it has already evaluated, because it also honours
-       an explicit app name that this derivation cannot see. The two scripts
-       arrive together and their order is not guaranteed, so fall back to the
-       same derivation TrueShade uses: the first path segment, as ODC's
-       /<AppName>/ gives the app name. */
+    /* TrueShade's key: at app init TrueShade has not loaded yet, so derive it
+       the way TrueShade does - the first path segment, which ODC's /<AppName>/
+       makes the app name. If TrueShade is somehow already present, prefer its
+       own answer, since it also honours an explicit app name. */
     function storageKey() {
         try {
             if (window.TrueShade && window.TrueShade.Theme &&
@@ -78,28 +75,29 @@
         } catch (_) { return 'light'; }
     }
 
-    /* Light needs no paint: light is what the stylesheets do by default, so
-       there is no wrong colour to suppress and nothing to hand back later. */
     var theme = resolvedTheme();
-    if (theme !== 'dark') return;
+    var paint = PAINT[theme];
+    var targets = [root, document.body].filter(Boolean);
+    targets.forEach(function (el) {
+        el.style.setProperty('background-color', paint.background, 'important');
+        el.style.setProperty('color', paint.color, 'important');
+    });
 
-    var paint = PAINT.dark;
-    var style = document.createElement('style');
-    style.textContent = 'html,body{background-color:' + paint.background +
-        ' !important;color:' + paint.color + ' !important}';
-    (document.head || root).appendChild(style);
+    /* Hand back to the stylesheets once they can take over, so a consumer
+       overriding --page-background is not fighting an inline !important
+       forever. The portal does this from a client action
+       (document.body.style.removeProperty("background-color")); doing it here
+       keeps the whole thing in one file with nothing else to wire.
 
-    /* Hand back to the stylesheets the moment they can take over, so a consumer
-       overriding --page-background is not fighting an !important rule forever.
-
-       Two conditions, and both matter. `--page-background` resolving proves
-       NeoBase is live. `data-theme` must ALSO be set, or removing this hands the
-       page to NeoBase's light default and reintroduces the flash just closed.
+       `--page-background` resolving proves NeoBase is live. For dark,
+       `data-theme` must ALSO be set, or removing this hands the page to
+       NeoBase's light default and reintroduces the flash. Light is the default,
+       so it needs no such wait.
 
        setTimeout rather than requestAnimationFrame: rAF does not run in a
-       background tab, which would strand the override on any page opened in one.
-       The timeout is a safety valve for an app that ships NeoBase without
-       TrueShade, where `data-theme` is never set at all. */
+       background tab, which would strand the paint on a page opened in one. The
+       timeout is a safety valve for an app without TrueShade, where
+       `data-theme` is never set. */
     var startedAt = Date.now();
     (function handOver() {
         var tokensLive = false;
@@ -108,8 +106,13 @@
                 .getPropertyValue('--page-background').trim() !== '';
         } catch (_) { /* treat as not live */ }
 
-        if ((tokensLive && root.getAttribute('data-theme')) || Date.now() - startedAt > 5000) {
-            if (style.parentNode) style.parentNode.removeChild(style);
+        var themeApplied = theme === 'light' || !!root.getAttribute('data-theme');
+
+        if ((tokensLive && themeApplied) || Date.now() - startedAt > 5000) {
+            targets.forEach(function (el) {
+                el.style.removeProperty('background-color');
+                el.style.removeProperty('color');
+            });
             return;
         }
         setTimeout(handOver, 16);

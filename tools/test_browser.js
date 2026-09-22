@@ -599,23 +599,31 @@ async function checkShellChrome(context, base) {
 
 
 /**
- * Reloading with dark stored must never paint a light frame.
+ * Reloading with dark stored must never paint the light theme.
  *
- * The theme is applied by JavaScript. If that write lands after the stylesheets
- * apply, the page paints in light and then flips — the flash this guards.
+ * Guarded by the app's `ThemePaint` Script, listed in the app root's
+ * RequiredScripts — the same mechanism the ODC Portal uses with its per-app
+ * `Layout` script. It paints the stored theme's colour on <body> at app init,
+ * before the stylesheets apply. Without it, the screen spends ~370ms in the
+ * light theme after the white canvas and before the shell sets data-theme.
  *
- * It reads PAINTED FRAMES, not getComputedStyle. Computed style reports values
- * the browser never paints: an earlier investigation of this bug reached the
- * wrong conclusion twice by polling it. Frames are what a person actually sees.
+ * TWO INSTRUMENT RULES, both learned by getting this wrong:
  *
- * The white canvas that precedes every stylesheet is NOT a failure here. It
- * cannot be fixed from inside an ODC app — the generated index.html carries
- * nothing app-controlled — so this asserts only that the design system's own
- * light page background never reaches the screen while dark is stored.
+ *   - PAINTED FRAMES, not getComputedStyle, which reports values the browser
+ *     never paints.
+ *   - MEAN LUMINANCE OF THE WHOLE FRAME, not one pixel. A single probe at 60-70%
+ *     of the height sits on a content surface here and reported colours
+ *     unrelated to the theme; it produced a wrong diagnosis once already.
+ *
+ * The pure white canvas (mean ~255) is NOT a failure. It precedes all app code,
+ * and ODC's generated index.html carries nothing app-controlled. The portal has
+ * it too. What must never appear is the light THEME (mean ~246), i.e. a frame
+ * that is light but not blank.
  */
 async function checkNoThemeFlash(context, base) {
-  const LIGHT_PAGE = '249,250,251';        // --page-background, light
-  await check('dark reload paints no light frame', async () => {
+  const WHITE = 252;    // at or above: the blank canvas, nothing painted yet
+  const DARK = 140;     // at or below: dark theme
+  await check('dark reload paints no light-theme frame', async () => {
     const page = await context.newPage();
     await page.setViewportSize({ width: 500, height: 400 });
     await page.goto(`${base}/Home`, { waitUntil: 'networkidle', timeout: 45000 });
@@ -640,34 +648,35 @@ async function checkNoThemeFlash(context, base) {
     await page.waitForTimeout(600);
     await cdp.send('Page.stopScreencast').catch(() => {});
 
-    // Node cannot decode PNG, so hand each frame to a blank page and read it
-    // back through a canvas.
+    // Node cannot decode PNG, so hand each frame to a blank page and average
+    // its luminance through a canvas.
     const decoder = await context.newPage();
     await decoder.goto('about:blank');
-    const colours = await decoder.evaluate((list) => Promise.all(list.map((d) => new Promise((res) => {
+    const lum = await decoder.evaluate((list) => Promise.all(list.map((d) => new Promise((res) => {
       const img = new Image();
       img.onload = () => {
         const c = document.createElement('canvas');
         c.width = img.width; c.height = img.height;
         const g = c.getContext('2d');
         g.drawImage(img, 0, 0);
-        const [r, gg, b] = g.getImageData(Math.floor(img.width / 2),
-                                          Math.floor(img.height * 0.6), 1, 1).data;
-        res(`${r},${gg},${b}`);
+        const px = g.getImageData(0, 0, img.width, img.height).data;
+        let sum = 0, n = 0;
+        for (let i = 0; i < px.length; i += 16) { sum += 0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]; n++; }
+        res(Math.round(sum / n));
       };
-      img.onerror = () => res('decode-error');
+      img.onerror = () => res(-1);
       img.src = 'data:image/png;base64,' + d;
     }))), frames);
     await decoder.close();
     await page.close();
 
-    assert(colours.length > 0, 'no frames were captured');
-    const seq = colours.filter((c, i) => i === 0 || c !== colours[i - 1]);
-    const flashed = colours.filter((c) => c === LIGHT_PAGE).length;
+    assert(lum.length > 0, 'no frames were captured');
+    const seq = lum.filter((l, i) => i === 0 || Math.abs(l - lum[i - 1]) > 6).map((l) => 'L' + l);
+    const flashed = lum.filter((l) => l > DARK && l < WHITE).length;
     assert(flashed === 0,
-           `${flashed} frame(s) painted the light page background while dark was `
-           + `stored — sequence: ${seq.join(' -> ')}`);
-    return `${colours.length} frames, none light (${seq.join(' -> ')})`;
+           `${flashed} frame(s) painted the light theme while dark was stored — `
+           + `is ThemePaint in the app root's RequiredScripts? sequence: ${seq.join(' -> ')}`);
+    return `${lum.length} frames, no light-theme frame (${seq.join(' -> ')})`;
   });
 }
 

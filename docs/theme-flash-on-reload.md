@@ -1,142 +1,113 @@
 # The dark-mode flash on reload
 
-Reloading with dark stored shows white, then the light page, then dark. This is
-what that is, measured against the deployed harness rather than reasoned about.
+Reloading with dark stored used to show white, then the light theme, then dark.
+This is what the ODC Portal does about it, how that was found, and the
+replication — measured on the deployed harness, not reasoned about.
 
-**The short version: TrueShade cannot fix it, and neither can the timing of the
-`data-theme` write. The light frame is painted while `data-theme` is already
-`dark`.**
+## The fix, as the portal does it
 
-## What the frames show
-
-`tools/fouc-lab/run-odc.js` reloads the deployed app with the screencast
-running and reports the colour of every painted frame. It loads *one* app twice
-and rewrites TrueShade's script on the wire, so each candidate differs from the
-baseline by one line and nothing else — same app, same bundle, same timings.
-
-Four reloads per cell, CPU throttled 4x, `NeoLayoutCheck/Home`, dark stored,
-median milliseconds spent painting the light page background:
-
-| variant | OS light | OS dark | what it changes |
-|---|---|---|---|
-| unpatched | 372 ms | 373 ms | — |
-| `applyTheme(ensureSeeded())` at script eval | 367 ms | 383 ms | sets `data-theme` ~120 ms earlier |
-| the same, plus `color-scheme` | 369 ms | 368 ms | also darkens the UA canvas |
-| the same, plus an injected background rule | **8 ms** | **15 ms** | paints dark without waiting for NeoBase |
-
-The first two candidates do nothing. The third removes the flash.
-
-## Why the obvious fix does nothing
-
-Polling `data-theme`, the computed body background and `document.styleSheets`
-through a single boot, with the `data-theme` patch applied:
-
-```
-  456ms  data-theme=dark   body-bg=rgba(0, 0, 0, 0)     neobase-not-live
-  469ms  data-theme=dark   body-bg=rgb(243, 246, 248)   neobase-not-live
-  472ms  first-paint
-  594ms  data-theme=dark   body-bg=rgb(24, 26, 31)      neobase-live
-```
-
-`data-theme` is already `dark` at 456 ms. The first frame is painted at 472 ms
-and it is light. The background only turns dark at 594 ms, when NeoBase's
-stylesheet enters the cascade.
-
-That is the whole story. `[data-theme="dark"]` is meaningless until the sheet
-that defines it is live. OutSystemsUI's stylesheet is live before NeoBase's —
-both arrive within a millisecond of each other (110 KB and 78 KB, `responseEnd`
-457 ms and 458 ms), but NeoBase takes ~125 ms longer to become live — so for
-that window the page is styled by OutSystemsUI alone, which is light.
-
-Setting the attribute sooner cannot help, because nothing is listening to it
-yet. This is why the local lab in `tools/fouc-lab/run.js` disagreed: it loads
-one small stylesheet that is live the moment it arrives, so there is no window
-in which the attribute is set and the rules are missing.
-
-## What does work
-
-Anything that paints the dark background **without needing NeoBase to be live**.
-The measured candidate injects a two-declaration `<style>` at script-evaluation
-time:
-
-```css
-html, body { background-color: #181a1f !important; color: #f9fafb }
-```
-
-372 ms → 8 ms. A residual 6–25 ms light frame remains, which is the gap between
-OutSystemsUI going live and this rule being appended.
-
-This belongs in **NeoDesignSystem**, not TrueShade: it is the design system that
-knows these colours, and TrueShade has no business hardcoding an app's palette.
-Two shapes are worth trying, in this order:
-
-1. **A tiny separate stylesheet** carrying only the page-background tokens for
-   both themes. Rules, not script; it should go live almost immediately because
-   it is ~1 KB rather than 78 KB. Whether ODC injects it early enough is an
-   empirical question — measure it, do not assume.
-2. **An early script** that appends the rule above when the stored preference
-   resolves to dark. This is what was measured, so it is known to work, but it
-   duplicates a colour that otherwise lives only in the tokens.
-
-## What the ODC Portal does
-
-The portal does not flash, and this is why. Its `index.html` is the *same shape
-as ours* — the same four platform scripts and two platform stylesheets, with
-byte-identical hashes, and no inline theme script. It has our constraint
-exactly. What it does instead, observed on its public login page (no sign-in
-needed, so this is reproducible by anyone):
-
-```
-  216ms  body style=null                                  data-theme=null
-  306ms  body style=background-color: rgb(10, 20, 30);    data-theme=null    <- only _Basic is live
-  429ms  (its nine design-system stylesheets go live)
-  640ms  body style=--viewport-height: 500px;             data-theme=dark    <- inline background removed
-```
-
-**It paints the page background as an inline style on `<body>` before any of
-its own stylesheets are live and before `data-theme` is set, then removes that
-inline property once the stylesheets and the attribute are in place.** The
-removal is in its bundle verbatim:
+Each portal app carries its own copy of a tiny **Script** element called
+`Layout`, and lists it in the **app root's `RequiredScripts`**. ODC compiles
+that list into the app's initialisation — the portal's bundle index reads:
 
 ```js
-document.body.style.removeProperty("background-color")
+executeRequiredScripts: [ "scripts/apps.UserScripts.Layout.js" ]
 ```
 
-The colour is written before the theme is resolved — the same
-`rgb(10, 20, 30)` under a light OS and a dark one, with nothing in storage — so
-it is a fixed background, not a resolved one, handed over to CSS the moment CSS
-can take it.
+so the script runs at app init, before any screen loads and before the
+stylesheets are live. It is 305 bytes:
 
-This is the `patch+inline` row of the table above, which is the candidate that
-took the light frame from 372 ms to 8 ms. The portal is not doing something
-unavailable to us; it is doing the one thing that works.
-
-Two things this is *not*: it is not the service worker replaying a cached shell
-(a cold profile with no worker installed shows the same inline write), and it is
-not a platform feature — the platform bootstrap is 618 bytes and contains no
-such write.
-
-## What cannot be fixed at all
-
-A pure white canvas precedes every stylesheet — **~370 ms on the harness,
-unchanged by every candidate above**, including `color-scheme`. It is painted
-before any app or library code exists: the platform's two `<head>` stylesheets
-are live at ~150 ms and say nothing about colour, and everything else, CSS and
-script alike, arrives together at ~455 ms.
-
-The only cure is an inline `<script>` in `<head>`, which is what TrueShade's own
-header comment recommends. **That is not available to an ODC app.** The
-generated `index.html` contains four platform scripts and two platform
-stylesheets and nothing app-controlled. Verified against the deployed harness.
-
-## Reproducing
-
-```bash
-node tools/fouc-lab/run-odc.js https://<host>/NeoLayoutCheck/Home 4 4
+```js
+const storedTheme = localStorage.getItem("layout-theme");
+if (!!storedTheme) {
+    if (storedTheme == "light") document.body.style.backgroundColor = "#F9FAFB"
+    else                        document.body.style.backgroundColor = "#181A1F"
+} else {
+    document.body.style.backgroundColor = "#F9FAFB"
+}
 ```
 
-Measure in frames, not `getComputedStyle`. An earlier round of this
-investigation reached the opposite conclusion by polling computed style, which
-reports values the browser never paints — and a later round reached the
-opposite conclusion again from a local reconstruction that was faithful to
-ODC's *timings* but not to its *stylesheet count*.
+A client action later hands back to the stylesheets with
+`document.body.style.removeProperty("background-color")`. The portal's
+authentication app has the same script with a different dark colour.
+
+The replication is `behaviour/theme-paint.js`, installed in NeoLayoutCheck as
+the Script `ThemePaint` in the app root's `RequiredScripts`. The harness's bundle
+index now compiles to the same shape:
+
+```js
+executeRequiredScripts: [ "scripts/NeoLayoutCheck.UserScripts.ThemePaint.js" ]
+```
+
+It differs from the portal's in three deliberate ways: it reads TrueShade's key
+(`$OS_<AppName>$layout-theme`) rather than the portal's unprefixed one, it
+resolves `system-default` through `prefers-color-scheme`, and it hands back to
+the stylesheets on its own once NeoBase is live and `data-theme` is set, so
+there is no removal action to wire.
+
+## Result
+
+`tools/fouc-lab/run-odc.js`, five reloads per cell, CPU throttled 4x, dark
+stored, median milliseconds, measured by intercepting `ThemePaint` on the wire
+so both columns are the same app:
+
+| OS preference | without `ThemePaint` | with `ThemePaint` |
+|---|---|---|
+| light | 400 white + **369 light theme** = 769 | 282 white + **0 light theme** = 282 |
+| dark | 448 white + **381 light theme** = 829 | 285 white + **0 light theme** = 285 |
+
+The script evaluates at 426-448 ms, before first paint, so the first content
+frame is already dark. It also trims the white window, because the inline body
+colour is itself the first paint.
+
+The ~283 ms of white that remains precedes all app code: ODC's generated
+`index.html` carries only platform files, and the portal has the same window.
+
+`tools/test_browser.js` guards this: `dark reload paints no light-theme frame`
+fails when `ThemePaint` is blocked (mutation-tested).
+
+## Installing it in another app
+
+A library cannot expose Script elements to its consumers, so there is nothing in
+NeoDesignSystem to point at — which is why the portal keeps a copy in each app.
+
+1. In the consuming app, create a Script element and paste
+   `behaviour/theme-paint.js` into it.
+2. Select the app root and add that Script to its **RequiredScripts**.
+3. Publish. Check the bundle index contains `executeRequiredScripts` naming it.
+
+## How it was found
+
+The early write was invisible to every JavaScript hook — prototype setters on
+`style`, `setProperty`, `cssText`, `setAttribute` all caught nothing. A DevTools
+DOM breakpoint on `body` attribute changes caught it immediately, with the file
+and line: `authentication.UserScripts.Layout.js:8`, top-level. Comparing request
+initiators then showed why it is early: the portal's script is loaded by
+`executeRequiredScripts` from the app's bundle index, while a library block's
+script goes through `loadResources → scheduleCustomJsLoading`.
+
+## What did not work, and why
+
+| attempt | effect | why |
+|---|---|---|
+| TrueShade applies the theme at script evaluation | none | setting `data-theme` earlier measured 776 ms vs 784 ms |
+| `color-scheme` from script | none | the canvas is painted before any app code |
+| library Script in `AppShell`/`Layout_Login` `RequiredScripts` | none | downloads at 413 ms, evaluates at 818 ms when the block renders — after first paint |
+| paint `html` only | none | `body` computes to `rgb(249,250,251)` at that moment, not the transparent `reset.css` declares, and covers it |
+| paint `html` and `body`, early | 784 → 383 ms | the right idea; the app-level registration is what makes it early in production |
+
+## Instrument lessons
+
+Two earlier write-ups in this repo reached wrong conclusions from bad
+instruments, and both are worth knowing before measuring anything visual here.
+
+- **Measure painted frames, not `getComputedStyle`.** Computed style reports
+  states the browser never paints.
+- **Measure the whole frame, not one pixel.** A probe at 70% of the height sits
+  on a content surface on this screen. It reported colours unrelated to the
+  theme and produced a confident, wrong "stylesheet ordering" diagnosis. Mean
+  luminance of the whole frame is what "the screen looks white" means.
+
+The local lab in `tools/fouc-lab/run.js` reconstructs ODC's boot order and is
+useful for fast iteration, but it disagreed with the platform on this question
+and the platform was right. Confirm on a deployed app with `run-odc.js`.

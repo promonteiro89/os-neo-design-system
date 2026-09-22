@@ -119,8 +119,8 @@ behaviour/                 the JS half of components whose CSS is a state contra
   dropdown-empty.js        the dropdown's open/close, positioning, keyboard and
                            OutSystemsUI/Dropdowns client-action bridge
   password-reveal.js       the show/hide password eye
-  theme-paint.js           paints the page background inline before any
-                           stylesheet is live — a Script resource, not OnReady
+  theme-paint.js           paints the stored theme's page colour at app init —
+                           copy into each app, list in the app's RequiredScripts
 templates/
   fusion-layout.html       page scaffold: header, top-info, content, side panel
   portal-shell.html        the complete layout — chrome + scaffold, matches the portal
@@ -263,25 +263,21 @@ CSS states:
 | --- | --- | --- |
 | `behaviour/dropdown-empty.js` | `.dropdown-empty` | open/close, popover positioning, keyboard, and the OutSystemsUI/Dropdowns client-action bridge |
 | `behaviour/password-reveal.js` | `#PasswordEye` | the show/hide password eye |
-| `behaviour/theme-paint.js` | `html` | paints the page background inline until NeoBase is live, then hands back |
+| `behaviour/theme-paint.js` | `body`, `html` | paints the stored theme's page colour at app init, then hands back to the stylesheets |
 
 **`theme-paint.js` is the exception to everything in this section.** It is not an
-`OnReady` node and must not be pasted into one: in ODC it belongs in a library
-**Script** resource, so that it evaluates when the bundle loads. `OnReady` runs
-after the screen has rendered, and being late is the entire bug it fixes —
-reloading with dark stored paints a light page for ~372 ms first. The cause is
-not a late `data-theme` write; the light frame is painted while `data-theme` is
-already `dark`, because NeoBase, the only stylesheet that defines
-`[data-theme="dark"]`, goes live ~125 ms after OutSystemsUI's. An inline style
-is the only write that needs no stylesheet. Measured 372 ms → 8 ms, and it is
-what the ODC Portal itself does. See `docs/theme-flash-on-reload.md`.
+`OnReady` node, and it does not live in the library. It goes in **each consuming
+app**, as a Script element listed in the **app root's `RequiredScripts`**. ODC
+compiles that list into the app's initialisation, so the script runs at app
+init — before any screen loads and before the stylesheets are live.
 
-In ODC it is the `NeoThemePaint` **Script** element, attached to both `AppShell`
-and `Layout_Login` through each block's `RequiredScripts` property — that is what
-gets it into the consuming app's bundle, and it is how TrueShade's own script
-arrives too. Both blocks need it: login screens use `Layout_Login` rather than
-`AppShell`. A Script that is not attached to anything is not bundled at all, and
-`Public` is not a supported flag on a Script in this library version.
+That is exactly how the ODC Portal avoids the white-then-dark reload: each portal
+app carries its own copy of a Script called `Layout`, registered the same way,
+which paints `document.body.style.backgroundColor` from the stored theme. The
+alternatives were measured and are too late — a library block's `RequiredScripts`
+downloads the script with the bundle but evaluates it when the block renders,
+374 ms after first paint — and a library cannot expose Scripts to its consumers,
+so there is no way to point an app at one. See `docs/theme-flash-on-reload.md`.
 
 For the other two, in ODC, paste the file into the block's `OnReady` as a JavaScript node. Both scripts
 install one delegated listener on `document` and keep no state of their own — state is

@@ -1,23 +1,27 @@
 #!/usr/bin/env node
 /**
- * Frame-capture measurement of the theme flash against a REAL deployed ODC app.
+ * Frame-capture measurement of the dark-mode reload flash on a deployed ODC app.
  *
  *     node tools/fouc-lab/run-odc.js https://<host>/NeoLayoutCheck/Home [cpu] [repeats]
  *
- * tools/fouc-lab/run.js reconstructs ODC's boot order locally; this runs inside
- * ODC, so the bundle sizes, the injection timing and the OnReady latency are the
- * platform's own. That distinction mattered: the local lab and the platform
- * disagreed, and the platform was right. See docs/theme-flash-on-reload.md.
+ * A/B ON ONE APP. Loads the app twice per cell and intercepts the app's own
+ * `ThemePaint` script (NeoLayoutCheck.UserScripts.ThemePaint.js) on the wire:
+ * "with" serves it untouched, "without" serves an empty body. Everything else —
+ * the app, the stylesheets, ODC's boot order — is byte-identical.
  *
- * A/B ON ONE APP. Comparing a fixed app against an unfixed app compares two
- * apps. Instead this loads ONE app twice and intercepts NeoDesignSystem's
- * `NeoThemePaint` script on the wire: the "with" run serves it untouched, the
- * "without" run serves an empty body. Everything else — the app, the CSS, the
- * bundle, ODC's boot order — is byte-identical between the two runs.
+ * TWO INSTRUMENT LESSONS, BOTH LEARNED THE HARD WAY:
  *
- * THE VERDICT COMES FROM PAINTED FRAMES. getComputedStyle reports states the
- * browser never paints and gave the opposite answer once already in this
- * investigation.
+ *   1. Painted frames, not getComputedStyle, which reports states the browser
+ *      never paints.
+ *   2. Mean luminance of the WHOLE frame, not one pixel. An earlier version
+ *      sampled one pixel at 70% of the height, which on this screen sits on a
+ *      content surface, and it reported colours unrelated to the theme. That
+ *      probe is what produced a wrong "stylesheet ordering" diagnosis.
+ *      "The screen looks white" is a whole-frame property.
+ *
+ * Two light states are reported separately, because only one is the script's
+ * job: the pure white canvas (mean luminance ~255) before anything paints, and
+ * the light theme (~246) painted while the stored choice is dark.
  */
 
 'use strict';
@@ -32,31 +36,13 @@ if (!BASE) {
 const CPU = Number(process.argv[3] || 4);
 const REPEATS = Number(process.argv[4] || 5);
 
-/** The URL ODC serves the script at, query string and all. */
-const THEME_PAINT_JS = /NeoThemePaint[^/]*\.js(\?|$)/i;
+const THEME_PAINT_JS = /UserScripts\.ThemePaint[^/]*\.js(\?|$)/i;
 
-/**
- * TWO DISTINCT LIGHT WINDOWS, MEASURED SEPARATELY.
- *
- *   canvas  pure white (255,255,255) — the browser's own canvas, painted before
- *           any stylesheet has applied. Nothing in an ODC app can reach it: the
- *           generated index.html carries only platform files, so at that point
- *           no app or library code exists yet. Reporting it mixed in with the
- *           next number would hide whether the fix did anything.
- *
- *   page    the app's own light page background — stylesheets have applied but
- *           the dark theme has not. THIS is the window the fix exists to close,
- *           and the only number the comparison turns on.
- */
-const WHITE = '255,255,255';
-const isPageLight = (rgb) => {
-  if (rgb === WHITE) return false;
-  const [r, g, b] = rgb.split(',').map(Number);
-  return (r + g + b) / 3 > 140;
-};
+const isWhite = (l) => l >= 252;              // the canvas, nothing painted yet
+const isLight = (l) => l > 140 && l < 252;    // the light theme, painted by mistake
 
 /** Decode base64 PNGs through a second page; Node has no PNG decoder. */
-async function decode(page, frames) {
+async function luminance(page, frames) {
   return page.evaluate((list) => Promise.all(list.map((f) => new Promise((res) => {
     const img = new Image();
     img.onload = () => {
@@ -64,19 +50,20 @@ async function decode(page, frames) {
       c.width = img.width; c.height = img.height;
       const g = c.getContext('2d');
       g.drawImage(img, 0, 0);
-      const [r, gr, b] = g.getImageData(Math.floor(img.width / 2), Math.floor(img.height * 0.7), 1, 1).data;
-      res({ t: f.t, rgb: `${r},${gr},${b}` });
+      const d = g.getImageData(0, 0, img.width, img.height).data;
+      let sum = 0, n = 0;
+      for (let i = 0; i < d.length; i += 16) { sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]; n++; }
+      res({ t: f.t, l: Math.round(sum / n) });
     };
-    img.onerror = () => res({ t: f.t, rgb: 'decode-error' });
+    img.onerror = () => res({ t: f.t, l: -1 });
     img.src = 'data:image/png;base64,' + f.data;
   }))), frames);
 }
 
-/** Milliseconds the sequence spent on frames matching `pred`. */
-function window_(seq, pred) {
+function spent(seq, pred) {
   let ms = 0;
   for (let i = 0; i < seq.length; i++) {
-    if (!pred(seq[i].rgb)) continue;
+    if (!pred(seq[i].l)) continue;
     ms += (i + 1 < seq.length ? seq[i + 1].t : seq[i].t) - seq[i].t;
   }
   return ms;
@@ -93,21 +80,23 @@ async function run(browser, decoder, { disable, os }) {
     await route.fulfill({ response: res, body: disable ? '/* disabled for baseline */' : await res.text() });
   });
 
-  // Store the dark preference the way a user would where the app offers a
-  // control, otherwise derive the key as TrueShade does: the first path
-  // segment, since ODC's /<AppName>/ gives the app name.
+  // Store dark the way TrueShade keys it: the first path segment is the app name.
   await page.goto(BASE, { waitUntil: 'networkidle' });
-  const darkButton = page.getByRole('button', { name: /^Dark$/i });
-  if (await darkButton.count()) {
-    await darkButton.first().click();
-  } else {
-    await page.evaluate(() => {
-      const seg = location.pathname.split('/').filter(Boolean)[0] || '';
-      localStorage.setItem('$OS_' + seg + '$layout-theme', 'dark');
-    });
-    await page.reload({ waitUntil: 'networkidle' });
-  }
-  await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark', null, { timeout: 20000 });
+  await page.evaluate(() => {
+    const seg = location.pathname.split('/').filter(Boolean)[0] || '';
+    localStorage.setItem('$OS_' + seg + '$layout-theme', 'dark');
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+
+  // Record when the script's marker appears, relative to the navigation.
+  await page.addInitScript(() => {
+    (function tick() {
+      if (document.documentElement && document.documentElement.dataset.neoThemePaint && !window.__paintAt) {
+        window.__paintAt = Math.round(performance.now());
+      }
+      if (!window.__paintAt) setTimeout(tick, 4);
+    })();
+  });
 
   const cdp = await context.newCDPSession(page);
   const frames = [];
@@ -122,19 +111,25 @@ async function run(browser, decoder, { disable, os }) {
   await page.reload({ waitUntil: 'commit' }).catch(() => {});
   await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark', null, { timeout: 30000 })
     .catch(() => {});
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(800);
   await cdp.send('Page.stopScreencast').catch(() => {});
+  const paintAt = await page.evaluate(() => window.__paintAt || null).catch(() => null);
+  const firstPaint = await page.evaluate(() => {
+    const e = performance.getEntriesByName('first-paint')[0];
+    return e ? Math.round(e.startTime) : null;
+  }).catch(() => null);
 
-  const read = await decode(decoder, frames.map((f) => ({ t: f.t - t0, data: f.data })));
+  const read = await luminance(decoder, frames.map((f) => ({ t: f.t - t0, data: f.data })));
   await context.close();
 
   const seq = [];
-  for (const f of read) if (!seq.length || seq[seq.length - 1].rgb !== f.rgb) seq.push(f);
-  return { seq, served, canvasMs: window_(seq, (c) => c === WHITE), pageMs: window_(seq, isPageLight) };
+  for (const f of read) if (!seq.length || Math.abs(seq[seq.length - 1].l - f.l) > 6) seq.push(f);
+  return { seq, served, paintAt, firstPaint, whiteMs: spent(seq, isWhite), lightMs: spent(seq, isLight) };
 }
 
 const median = (xs) => {
-  const s = [...xs].sort((a, b) => a - b);
+  const s = xs.filter((x) => x != null).sort((a, b) => a - b);
+  if (!s.length) return null;
   return s.length % 2 ? s[(s.length - 1) / 2] : Math.round((s[s.length / 2 - 1] + s[s.length / 2]) / 2);
 };
 
@@ -143,27 +138,26 @@ const median = (xs) => {
   const decoder = await browser.newPage();
   await decoder.goto('about:blank');
 
-  console.log(`painted frames, CPU x${CPU}, ${REPEATS} reloads per cell, stored choice = dark\n  ${BASE}\n`);
-  console.log('  canvas = pure white before any stylesheet (unreachable from an ODC app)');
-  console.log('  page   = the light page background before the theme applies (what NeoThemePaint closes)\n');
+  console.log(`painted frames, CPU x${CPU}, ${REPEATS} reloads per cell, stored choice = dark`);
+  console.log(`  ${BASE}`);
+  console.log('  white = mean frame luminance >=252 (canvas)   light = 140-252 (light theme painted by mistake)\n');
 
   for (const os of ['light', 'dark']) {
     console.log(`  --- operating system preference: ${os} ---`);
     for (const [label, disable] of [['without', true], ['with', false]]) {
-      const canvas = [], pageW = [];
+      const w = [], l = [], at = [], fp = [];
       let last = null;
       for (let i = 0; i < REPEATS; i++) {
         const r = await run(browser, decoder, { disable, os });
-        if (!r.served) throw new Error('NeoThemePaint was never requested — the app is not on a library revision that ships it');
-        last = r.seq;
-        canvas.push(r.canvasMs); pageW.push(r.pageMs);
+        if (!r.served) throw new Error('ThemePaint was never requested — is it in the app root\'s RequiredScripts?');
+        w.push(r.whiteMs); l.push(r.lightMs); at.push(r.paintAt); fp.push(r.firstPaint); last = r.seq;
       }
-      console.log(`  NeoThemePaint ${label.padEnd(8)} canvas ${String(median(canvas)).padStart(4)}ms   page ${String(median(pageW)).padStart(4)}ms` +
-                  `   (page runs: ${pageW.join(', ')})`);
-      console.log(`  ${' '.repeat(22)}last trail: ${last.map((f) => `${f.rgb}@${f.t}ms`).join('  ->  ')}`);
+      const tot = w.map((x, i) => x + l[i]);
+      console.log(`  ThemePaint ${label.padEnd(8)} white ${String(median(w)).padStart(4)}ms  light ${String(median(l)).padStart(4)}ms  ` +
+                  `total ${String(median(tot)).padStart(4)}ms   ran at ${label === 'with' ? median(at) + 'ms' : '-'}  first-paint ${median(fp)}ms`);
+      console.log(`  ${' '.repeat(19)}trail: ${last.map((f) => `L${f.l}@${f.t}ms`).join(' -> ')}`);
     }
     console.log('');
   }
-
   await browser.close();
 })().catch((e) => { console.error(e.message); process.exit(1); });
